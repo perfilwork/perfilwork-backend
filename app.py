@@ -66,7 +66,7 @@ def crear_cv():
             Ya estamos trabajando en una versión más profesional con IA.
             En breve podrás descargar tu nuevo CV.
             </p>
-            <a href="javascript:history.back()" class="btn">Volver al formulario</a>
+            <a href="file:///C:/RUTA-DE-TU-PC/candidato.html" class="btn">Volver al formulario</a>
         </div>
     </body>
     </html>
