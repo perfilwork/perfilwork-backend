@@ -4,7 +4,9 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# Crear base si no existe
+# ------------------------
+# BASE DE DATOS
+# ------------------------
 def init_db():
     conn = sqlite3.connect("candidatos.db")
     cur = conn.cursor()
@@ -31,10 +33,16 @@ def init_db():
 
 init_db()
 
+# ------------------------
+# HOME
+# ------------------------
 @app.route("/")
 def home():
     return "Perfil.Work Backend OK"
 
+# ------------------------
+# FORMULARIO
+# ------------------------
 @app.route("/crear-cv", methods=["POST"])
 def crear_cv():
 
@@ -70,7 +78,6 @@ def crear_cv():
     return f"""
     <html>
     <head>
-    <title>CV recibido</title>
     <style>
     body {{
         font-family: Arial;
@@ -89,30 +96,113 @@ def crear_cv():
         max-width:580px;
         text-align:center;
     }}
-    h1 {{
-        color:#2563eb;
-        margin-bottom:15px;
-    }}
-    p {{
-        color:#475569;
-        font-size:18px;
-        line-height:1.5;
-    }}
-    .emoji {{
-        font-size:54px;
-        margin-bottom:16px;
-    }}
+    h1 {{color:#2563eb}}
+    p {{font-size:18px;color:#475569;line-height:1.5}}
     </style>
     </head>
     <body>
         <div class="box">
-            <div class="emoji">🚀</div>
+            <div style="font-size:54px;">🚀</div>
             <h1>{nombre}, recibimos tu CV</h1>
             <p>
             Ya guardamos tus datos correctamente.<br>
             Estamos preparando una versión profesional con IA.
             </p>
         </div>
+    </body>
+    </html>
+    """
+
+# ------------------------
+# PANEL LEADS
+# ------------------------
+@app.route("/leads")
+def leads():
+
+    conn = sqlite3.connect("candidatos.db")
+    cur = conn.cursor()
+
+    cur.execute("""
+    SELECT fecha,nombre,correo,whatsapp,region,cargo,
+           area,experiencia,nivel,sueldo
+    FROM candidatos
+    ORDER BY id DESC
+    """)
+
+    rows = cur.fetchall()
+    conn.close()
+
+    tabla = ""
+
+    for r in rows:
+        tabla += f"""
+        <tr>
+            <td>{r[0]}</td>
+            <td>{r[1]}</td>
+            <td>{r[2]}</td>
+            <td>{r[3]}</td>
+            <td>{r[4]}</td>
+            <td>{r[5]}</td>
+            <td>{r[6]}</td>
+            <td>{r[7]}</td>
+            <td>{r[8]}</td>
+            <td>{r[9]}</td>
+        </tr>
+        """
+
+    return f"""
+    <html>
+    <head>
+    <style>
+    body {{
+        font-family: Arial;
+        background:#f8fafc;
+        padding:30px;
+    }}
+    h1 {{
+        color:#2563eb;
+        margin-bottom:20px;
+    }}
+    table {{
+        width:100%;
+        border-collapse:collapse;
+        background:white;
+        box-shadow:0 10px 25px rgba(0,0,0,.05);
+        border-radius:14px;
+        overflow:hidden;
+    }}
+    th,td {{
+        padding:12px;
+        border-bottom:1px solid #e2e8f0;
+        text-align:left;
+        font-size:14px;
+    }}
+    th {{
+        background:#2563eb;
+        color:white;
+    }}
+    tr:hover {{
+        background:#f1f5f9;
+    }}
+    </style>
+    </head>
+    <body>
+        <h1>📋 Leads Perfil.Work</h1>
+        <table>
+            <tr>
+                <th>Fecha</th>
+                <th>Nombre</th>
+                <th>Correo</th>
+                <th>WhatsApp</th>
+                <th>Región</th>
+                <th>Cargo</th>
+                <th>Área</th>
+                <th>Exp.</th>
+                <th>Nivel</th>
+                <th>Sueldo</th>
+            </tr>
+            {tabla}
+        </table>
     </body>
     </html>
     """
