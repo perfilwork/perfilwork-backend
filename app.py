@@ -1,15 +1,19 @@
 import os
 import sqlite3
 from io import BytesIO
-from flask import Flask, request, send_file, jsonify
+
+from flask import Flask, request, send_file
 from flask_cors import CORS
 
 from openai import OpenAI
 
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
+
+# =========================
+# APP
+# =========================
 
 app = Flask(__name__)
 CORS(app)
@@ -81,7 +85,7 @@ def guardar_lead(data):
     conn.close()
 
 # =========================
-# OPENAI TEXT
+# IA + FALLBACK
 # =========================
 
 def generar_cv(data):
@@ -95,7 +99,6 @@ Cargo objetivo: {data['cargo']}
 Área técnica: {data['area']}
 Experiencia: {data['experiencia']}
 Nivel: {data['nivel']}
-Sueldo esperado: {data['sueldo']}
 Región: {data['region']}
 Información adicional: {data['detalle']}
 
@@ -106,29 +109,66 @@ EXPERIENCIA DESTACADA:
 COMPETENCIAS TÉCNICAS:
 CERTIFICACIONES Y DATOS RELEVANTES:
 
-Redacción profesional, concreta, potente y creíble.
-No inventes empleadores ni estudios.
+No inventes información.
 """
 
-    r = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.7
-    )
+    try:
+        r = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7
+        )
 
-    return r.choices[0].message.content
+        return r.choices[0].message.content
+
+    except Exception:
+
+        return f"""
+PERFIL PROFESIONAL:
+Profesional orientado al área de {data['area']}, con experiencia de {data['experiencia']}. 
+Cuenta con nivel declarado: {data['nivel']}. Enfocado en seguridad, cumplimiento y resultados.
+
+EXPERIENCIA DESTACADA:
+Experiencia relacionada al cargo de {data['cargo']} en funciones técnicas y operativas.
+
+COMPETENCIAS TÉCNICAS:
+• {data['area']}
+• Trabajo en equipo
+• Resolución de problemas
+• Cumplimiento de procedimientos
+• Orientación a resultados
+
+CERTIFICACIONES Y DATOS RELEVANTES:
+{data['detalle'] if data['detalle'] else 'Información adicional entregada por el candidato.'}
+"""
 
 # =========================
 # PDF
 # =========================
 
-def crear_pdf(data, texto):
+def wrap_text(texto, largo=95):
+    palabras = texto.split()
+    lineas = []
+    actual = ""
+
+    for palabra in palabras:
+        if len(actual + " " + palabra) <= largo:
+            actual += " " + palabra if actual else palabra
+        else:
+            lineas.append(actual)
+            actual = palabra
+
+    if actual:
+        lineas.append(actual)
+
+    return lineas
+
+def crear_pdf(data, contenido):
 
     buffer = BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=A4)
 
     width, height = A4
-
     y = height - 40
 
     # LOGO
@@ -136,16 +176,16 @@ def crear_pdf(data, texto):
         pdf.drawImage(
             ImageReader("logo.png"),
             35,
-            y - 20,
-            width=95,
-            height=28,
+            y - 15,
+            width=110,
+            height=30,
             preserveAspectRatio=True,
             mask='auto'
         )
 
     y -= 50
 
-    # TITULO
+    # HEADER
     pdf.setFont("Helvetica-Bold", 18)
     pdf.drawString(35, y, data["nombre"].upper())
 
@@ -158,32 +198,30 @@ def crear_pdf(data, texto):
 
     y -= 28
 
-    pdf.setFont("Helvetica", 11)
+    # BODY
+    for linea in contenido.split("\n"):
 
-    lines = texto.split("\n")
+        linea = linea.strip()
 
-    for line in lines:
-
-        if y < 70:
-            pdf.showPage()
-            y = height - 50
-            pdf.setFont("Helvetica", 11)
-
-        line = line.strip()
-
-        if not line:
+        if not linea:
             y -= 8
             continue
 
-        if line.endswith(":"):
+        if y < 70:
+            pdf.showPage()
+            y = height - 40
+
+        if linea.endswith(":"):
             pdf.setFont("Helvetica-Bold", 12)
-            pdf.drawString(35, y, line)
+            pdf.drawString(35, y, linea)
             y -= 18
             pdf.setFont("Helvetica", 11)
+
         else:
-            wrapped = dividir_texto(line, 95)
-            for w in wrapped:
-                pdf.drawString(35, y, w)
+            pdf.setFont("Helvetica", 11)
+
+            for l in wrap_text(linea):
+                pdf.drawString(35, y, l)
                 y -= 15
 
     # FOOTER
@@ -192,28 +230,8 @@ def crear_pdf(data, texto):
 
     pdf.save()
     buffer.seek(0)
+
     return buffer
-
-# =========================
-# WRAP TEXT
-# =========================
-
-def dividir_texto(texto, largo):
-    palabras = texto.split()
-    lineas = []
-    actual = ""
-
-    for p in palabras:
-        if len(actual + " " + p) <= largo:
-            actual += " " + p if actual else p
-        else:
-            lineas.append(actual)
-            actual = p
-
-    if actual:
-        lineas.append(actual)
-
-    return lineas
 
 # =========================
 # ROUTES
@@ -241,8 +259,8 @@ def leads():
     html = "<h2>Leads Perfil.Work</h2><table border=1 cellpadding=8>"
     html += "<tr><th>ID</th><th>Nombre</th><th>Correo</th><th>WhatsApp</th><th>Región</th><th>Cargo</th><th>Área</th></tr>"
 
-    for r in rows:
-        html += "<tr>" + "".join([f"<td>{x}</td>" for x in r]) + "</tr>"
+    for row in rows:
+        html += "<tr>" + "".join([f"<td>{x}</td>" for x in row]) + "</tr>"
 
     html += "</table>"
 
@@ -266,16 +284,16 @@ def crear_cv():
 
     guardar_lead(data)
 
-    texto = generar_cv(data)
+    contenido = generar_cv(data)
 
-    pdf_buffer = crear_pdf(data, texto)
+    pdf = crear_pdf(data, contenido)
 
-    nombre_archivo = f"CV_{data['nombre'].replace(' ','_')}.pdf"
+    nombre = f"CV_{data['nombre'].replace(' ','_')}.pdf"
 
     return send_file(
-        pdf_buffer,
+        pdf,
         as_attachment=True,
-        download_name=nombre_archivo,
+        download_name=nombre,
         mimetype="application/pdf"
     )
 
