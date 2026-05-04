@@ -74,7 +74,7 @@ COMPETENCIAS:
 - Cumplimiento de normas de seguridad
 """
 
-    # limpiar markdown (asteriscos)
+    # limpiar markdown
     texto = texto.replace("**", "")
 
     return texto
@@ -90,7 +90,7 @@ def generar_pdf(nombre, cargo, contacto, texto_cv):
 
     width, height = A4
 
-    # LOGO (si existe)
+    # LOGO
     try:
         logo = ImageReader("logo.png")
         c.drawImage(logo, 20, height - 60, width=120, preserveAspectRatio=True, mask='auto')
@@ -127,7 +127,7 @@ def generar_pdf(nombre, cargo, contacto, texto_cv):
             "PERFIL PROFESIONAL:",
             "EXPERIENCIA:",
             "COMPETENCIAS:",
-            "CERTIFICACIONES:",
+            "CERTIFICACIONES:"
         ]:
             c.setFont("Helvetica-Bold", 12)
             y -= 5
@@ -158,7 +158,11 @@ def home():
 @app.route("/crear-cv", methods=["POST"])
 def crear_cv():
 
-    data = request.json
+    # 🔥 SOPORTE PARA FORMULARIO + JSON
+    if request.is_json:
+        data = request.json
+    else:
+        data = request.form.to_dict()
 
     nombre = data.get("nombre", "Nombre Apellido")
     cargo = data.get("cargo", "Cargo")
