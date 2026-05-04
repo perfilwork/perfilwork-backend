@@ -23,8 +23,9 @@ styles = getSampleStyleSheet()
 styles.add(ParagraphStyle(name="BodySmall", fontSize=9, leading=12, alignment=TA_LEFT))
 styles.add(ParagraphStyle(name="Section", fontSize=11, leading=14, spaceAfter=6))
 
+
 # =========================
-# 1) EXTRAER TEXTO
+# EXTRAER TEXTO
 # =========================
 
 def extraer_texto(file):
@@ -49,39 +50,28 @@ def extraer_texto(file):
 
     return ""
 
+
 # =========================
-# 2) PREPROCESAMIENTO (CLAVE)
+# PREPROCESAR
 # =========================
 
 def normalizar_linea(l):
-    l = l.strip()
-    l = re.sub(r"\s+", " ", l)
-    return l
+    return re.sub(r"\s+", " ", l.strip())
 
 def es_linea_experiencia(l):
-    # detecta "1999 : ..." / "2009 – 2010 : ..." / "2012-2013 : ..."
     return bool(re.match(r"^\d{4}", l)) and ":" in l
 
 def limpiar_experiencia(l):
-    # convierte "1999 : MAESTRANZA CABUR (SOLDADOR)"
-    # en "1999 - Maestranza Cabur - Soldador"
     partes = l.split(":")
     anio = partes[0].strip()
     resto = partes[1].strip()
-
-    # limpiar paréntesis
     resto = resto.replace("(", " - ").replace(")", "")
-    resto = re.sub(r"\s{2,}", " ", resto)
-
     return f"{anio} - {resto}"
 
 def preprocesar_cv(texto):
     lineas = [normalizar_linea(l) for l in texto.split("\n") if l.strip()]
 
-    datos = []
-    experiencia = []
-    formacion = []
-
+    datos, experiencia, formacion = [], [], []
     modo = None
 
     for l in lineas:
@@ -107,25 +97,36 @@ def preprocesar_cv(texto):
     texto_limpio = ""
 
     if datos:
-        texto_limpio += "DATOS PERSONALES:\n"
-        texto_limpio += "\n".join(datos[:15])  # límite para no ensuciar
-        texto_limpio += "\n\n"
+        texto_limpio += "DATOS PERSONALES:\n" + "\n".join(datos[:15]) + "\n\n"
 
     if experiencia:
         texto_limpio += "EXPERIENCIA LABORAL:\n"
-        for e in experiencia:
-            texto_limpio += f"- {e}\n"
-        texto_limpio += "\n"
+        texto_limpio += "\n".join(f"- {e}" for e in experiencia) + "\n\n"
 
     if formacion:
-        texto_limpio += "FORMACIÓN Y CAPACITACIONES:\n"
-        for f in formacion:
-            texto_limpio += f"- {f}\n"
+        texto_limpio += "FORMACIÓN:\n"
+        texto_limpio += "\n".join(f"- {f}" for f in formacion)
 
     return texto_limpio
 
+
 # =========================
-# 3) IA (PROMPT ROBUSTO)
+# LIMPIAR RESPUESTA IA (CRÍTICO)
+# =========================
+
+def limpiar_lista(lista):
+    resultado = []
+    for item in lista:
+        if isinstance(item, dict):
+            texto = " - ".join([str(v) for v in item.values() if v])
+            resultado.append(texto)
+        else:
+            resultado.append(str(item))
+    return resultado
+
+
+# =========================
+# IA
 # =========================
 
 def mejorar_cv(texto_cv, info_extra):
@@ -133,149 +134,106 @@ def mejorar_cv(texto_cv, info_extra):
     prompt = f"""
 Eres un especialista en reclutamiento técnico industrial.
 
-Tu tarea es MEJORAR un CV real.
-
-IMPORTANTE:
-Debes utilizar EXCLUSIVAMENTE la información contenida en el CV original.
+Usa SOLO la información del CV.
 
 PROHIBIDO:
 - inventar empresas
-- inventar años
-- inventar cargos
-- usar ejemplos genéricos como "Empresa XYZ"
-- usar texto ficticio
+- inventar datos
+- usar texto genérico
 
-OBLIGATORIO:
-- extraer todas las experiencias laborales reales
-- mantener nombres de empresas tal como aparecen
-- mantener continuidad de la trayectoria
-- si hay muchas experiencias, agruparlas sin eliminarlas
+CV:
+{texto_cv}
 
-Si no puedes identificar una empresa o dato, NO lo inventes, simplemente omítelo.
-
----
-
-CV ORIGINAL:
-{texto_procesado}
-
----
-
-INFORMACIÓN ADICIONAL:
+INFO ADICIONAL:
 {info_extra}
 
----
+Devuelve SOLO JSON válido:
 
-FORMATO JSON:
-{
-  "perfil": "...",
-  "experiencia": ["...", "..."],
-  "formacion": ["...", "..."],
-  "certificaciones": ["...", "..."],
-  "competencias": ["...", "..."],
-  "info_relevante": "..."
-}
+{{
+"perfil": "...",
+"experiencia": ["..."],
+"formacion": ["..."],
+"certificaciones": ["..."],
+"competencias": ["..."],
+"info_relevante": "..."
+}}
 """
 
     try:
         r = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.3
+            temperature=0.2
         )
 
-        contenido = r.choices[0].message.content
+        contenido = r.choices[0].message.content.strip()
         contenido = contenido.replace("```json", "").replace("```", "")
 
-        return json.loads(contenido)
+        data = json.loads(contenido)
 
     except Exception as e:
         print("ERROR IA:", e)
-        return {
-            "perfil": "",
-            "experiencia": [],
-            "formacion": [],
-            "certificaciones": [],
-            "competencias": [],
-            "info_relevante": info_extra
-        }
+        data = {}
+
+    # 🔥 NORMALIZACIÓN (EVITA CRASH)
+    data["experiencia"] = limpiar_lista(data.get("experiencia", []))
+    data["formacion"] = limpiar_lista(data.get("formacion", []))
+    data["certificaciones"] = limpiar_lista(data.get("certificaciones", []))
+    data["competencias"] = limpiar_lista(data.get("competencias", []))
+
+    return data
+
 
 # =========================
-# 4) PDF LIMPIO (COMO TU EJEMPLO)
+# PDF
 # =========================
 
 def generar_pdf(nombre, cargo, contacto, data):
 
     buffer = BytesIO()
 
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        leftMargin=30,
-        rightMargin=30,
-        topMargin=30,
-        bottomMargin=30
-    )
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+        leftMargin=30, rightMargin=30, topMargin=30, bottomMargin=30)
 
     elements = []
 
-    # LOGO BIEN (sin distorsión)
     if os.path.exists("logo.png"):
         elements.append(Image("logo.png", width=120, height=40))
         elements.append(Spacer(1, 8))
 
-    # HEADER
     elements.append(Paragraph(f"<b>{nombre}</b>", styles["Title"]))
     elements.append(Paragraph(cargo, styles["Normal"]))
     elements.append(Paragraph(contacto, styles["BodySmall"]))
     elements.append(Spacer(1, 12))
 
-    # PERFIL
     if data.get("perfil"):
         elements.append(Paragraph("<b>RESUMEN</b>", styles["Section"]))
         elements.append(Paragraph(data["perfil"], styles["BodySmall"]))
-        elements.append(Spacer(1, 10))
 
-    # EXPERIENCIA
     if data.get("experiencia"):
         elements.append(Paragraph("<b>EXPERIENCIA LABORAL</b>", styles["Section"]))
-        elements.append(
-            ListFlowable([Paragraph(x, styles["BodySmall"]) for x in data["experiencia"]])
-        )
-        elements.append(Spacer(1, 10))
+        elements.append(ListFlowable([Paragraph(x, styles["BodySmall"]) for x in data["experiencia"]]))
 
-    # FORMACIÓN
     if data.get("formacion"):
         elements.append(Paragraph("<b>FORMACIÓN</b>", styles["Section"]))
-        elements.append(
-            ListFlowable([Paragraph(x, styles["BodySmall"]) for x in data["formacion"]])
-        )
-        elements.append(Spacer(1, 10))
+        elements.append(ListFlowable([Paragraph(x, styles["BodySmall"]) for x in data["formacion"]]))
 
-    # CERTIFICACIONES
     if data.get("certificaciones"):
         elements.append(Paragraph("<b>CERTIFICACIONES</b>", styles["Section"]))
-        elements.append(
-            ListFlowable([Paragraph(x, styles["BodySmall"]) for x in data["certificaciones"]])
-        )
-        elements.append(Spacer(1, 10))
+        elements.append(ListFlowable([Paragraph(x, styles["BodySmall"]) for x in data["certificaciones"]]))
 
-    # COMPETENCIAS
     if data.get("competencias"):
         elements.append(Paragraph("<b>COMPETENCIAS</b>", styles["Section"]))
-        elements.append(
-            ListFlowable([Paragraph(x, styles["BodySmall"]) for x in data["competencias"]])
-        )
-        elements.append(Spacer(1, 10))
+        elements.append(ListFlowable([Paragraph(x, styles["BodySmall"]) for x in data["competencias"]]))
 
-    # INFO RELEVANTE
     if data.get("info_relevante"):
         elements.append(Paragraph("<b>INFORMACIÓN RELEVANTE</b>", styles["Section"]))
         elements.append(Paragraph(data["info_relevante"], styles["BodySmall"]))
 
     doc.build(elements)
-
     buffer.seek(0)
     return buffer
+
 
 # =========================
 # ROUTE
@@ -299,12 +257,8 @@ def crear_cv():
 
     pdf = generar_pdf(nombre, cargo, contacto, data)
 
-    return send_file(
-        pdf,
-        as_attachment=True,
-        download_name="cv_mejorado.pdf",
-        mimetype="application/pdf"
-    )
+    return send_file(pdf, as_attachment=True, download_name="cv_mejorado.pdf", mimetype="application/pdf")
+
 
 if __name__ == "__main__":
     app.run(debug=True)
