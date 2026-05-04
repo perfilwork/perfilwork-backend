@@ -131,50 +131,49 @@ def preprocesar_cv(texto):
 def mejorar_cv(texto_cv, info_extra):
 
     prompt = f"""
-Eres especialista en reclutamiento técnico industrial.
+Eres un especialista en reclutamiento técnico industrial.
 
 Tu tarea es MEJORAR un CV real.
 
-NO crear uno nuevo.
+IMPORTANTE:
+Debes utilizar EXCLUSIVAMENTE la información contenida en el CV original.
 
-REGLAS:
-- NO inventar información
-- NO eliminar experiencia
-- NO resumir agresivamente
-- NO agregar frases genéricas
-- NO agregar notas
+PROHIBIDO:
+- inventar empresas
+- inventar años
+- inventar cargos
+- usar ejemplos genéricos como "Empresa XYZ"
+- usar texto ficticio
 
-OBJETIVO:
-- Ordenar el CV
-- Mejorar redacción
-- Agrupar experiencia sin perder trayectoria
-- Hacerlo legible para reclutador
+OBLIGATORIO:
+- extraer todas las experiencias laborales reales
+- mantener nombres de empresas tal como aparecen
+- mantener continuidad de la trayectoria
+- si hay muchas experiencias, agruparlas sin eliminarlas
 
-EXPERIENCIA:
-- Mantener TODAS las empresas
-- Puedes agrupar bajo "Trayectoria en..."
-- Mantener años visibles
+Si no puedes identificar una empresa o dato, NO lo inventes, simplemente omítelo.
+
+---
+
+CV ORIGINAL:
+{texto_procesado}
+
+---
 
 INFORMACIÓN ADICIONAL:
-- Crear sección: INFORMACIÓN RELEVANTE
-- No duplicar
-
-CV PROCESADO:
-{texto_cv}
-
-INFO EXTRA:
 {info_extra}
 
-RESPUESTA JSON:
+---
 
-{{
+FORMATO JSON:
+{
   "perfil": "...",
   "experiencia": ["...", "..."],
   "formacion": ["...", "..."],
   "certificaciones": ["...", "..."],
   "competencias": ["...", "..."],
   "info_relevante": "..."
-}}
+}
 """
 
     try:
