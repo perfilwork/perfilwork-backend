@@ -5,9 +5,11 @@ from flask import Flask, request, send_file
 from flask_cors import CORS
 from openai import OpenAI
 
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, ListFlowable
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.utils import ImageReader
-from reportlab.pdfgen import canvas
+from reportlab.lib.units import mm
+from reportlab.platypus import Image
 
 import docx
 import PyPDF2
@@ -17,12 +19,13 @@ CORS(app)
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+styles = getSampleStyleSheet()
+
 # =========================
-# EXTRAER TEXTO DE ARCHIVOS
+# EXTRAER TEXTO CV
 # =========================
 
 def extraer_texto(file):
-
     filename = file.filename.lower()
 
     if filename.endswith(".docx"):
@@ -39,42 +42,72 @@ def extraer_texto(file):
     return ""
 
 # =========================
-# IA (MEJORA CV REAL)
+# IA (LÓGICA CORRECTA)
 # =========================
 
 def mejorar_cv(cv_texto, info_extra):
 
     prompt = f"""
-Eres experto en reclutamiento técnico en Chile.
+Eres especialista en reclutamiento técnico industrial en Chile.
 
-Tu tarea es MEJORAR un CV existente.
+Tu tarea es MEJORAR un CV real.
 
-REGLAS CRÍTICAS:
-- NO inventar información
-- NO eliminar información relevante
-- NO resumir en exceso
-- NO agregar placeholders
-- NO escribir notas ni recomendaciones
-- Mantener TODO lo importante del CV original
+NO estás creando uno nuevo.
+
+---
 
 OBJETIVO:
-- Ordenar
+- Ordenar información
 - Mejorar redacción
-- Hacerlo más claro para reclutadores
+- Hacerlo claro y profesional
+- Mantener la trayectoria completa del candidato
+
+---
+
+REGLAS CRÍTICAS:
+
+- NO inventar información
+- NO eliminar experiencia relevante
+- NO resumir en exceso
+- NO agregar frases genéricas
+- NO agregar notas ni explicaciones
+
+---
+
+SOBRE EXPERIENCIA:
+
+- Si hay muchas experiencias, puedes AGRUPAR por tipo o continuidad
+- Mantener trayectoria clara (cronológica o agrupada)
+- NO eliminar trabajos reales
+
+---
+
+SOBRE INFORMACIÓN ADICIONAL:
+
+- Crear sección: "INFORMACIÓN RELEVANTE"
+- Integrar sin duplicar contenido
+
+---
 
 CV ORIGINAL:
 {cv_texto}
 
-INFORMACIÓN ADICIONAL DEL CANDIDATO:
+---
+
+INFORMACIÓN ADICIONAL:
 {info_extra}
 
-FORMATO DE SALIDA (SOLO JSON):
+---
+
+FORMATO DE RESPUESTA (JSON PURO):
 
 {{
   "perfil": "...",
   "experiencia": ["...", "..."],
+  "formacion": ["...", "..."],
+  "certificaciones": ["...", "..."],
   "competencias": ["...", "..."],
-  "certificaciones": ["...", "..."]
+  "info_relevante": "..."
 }}
 """
 
@@ -94,113 +127,98 @@ FORMATO DE SALIDA (SOLO JSON):
         print("ERROR IA:", e)
 
         return {
-            "perfil": cv_texto[:200],
+            "perfil": cv_texto[:300],
             "experiencia": [],
+            "formacion": [],
+            "certificaciones": [],
             "competencias": [],
-            "certificaciones": []
+            "info_relevante": info_extra
         }
 
 # =========================
-# UTIL TEXTO
-# =========================
-
-def dividir_texto(texto, max_chars):
-    palabras = texto.split()
-    lineas = []
-    actual = ""
-
-    for palabra in palabras:
-        if len(actual) + len(palabra) < max_chars:
-            actual += palabra + " "
-        else:
-            lineas.append(actual)
-            actual = palabra + " "
-
-    lineas.append(actual)
-    return lineas
-
-# =========================
-# PDF LIMPIO (NO DISTORSIONADO)
+# PDF LIMPIO Y LEGIBLE
 # =========================
 
 def generar_pdf(nombre, cargo, contacto, data):
 
     buffer = BytesIO()
-    c = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
 
-    y = height - 60
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=30,
+        rightMargin=30,
+        topMargin=30,
+        bottomMargin=30
+    )
 
-    # LOGO BIEN PROPORCIONADO
-    try:
-        logo = ImageReader("logo.png")
-        c.drawImage(logo, width - 150, height - 70, width=120, preserveAspectRatio=True)
-    except:
-        pass
+    elements = []
+
+    # LOGO
+    if os.path.exists("logo.png"):
+        logo = Image("logo.png", width=120, height=40)
+        elements.append(logo)
+        elements.append(Spacer(1, 10))
 
     # HEADER
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(40, y, nombre)
-    y -= 20
-
-    c.setFont("Helvetica", 11)
-    c.drawString(40, y, cargo)
-    y -= 15
-
-    c.setFont("Helvetica", 9)
-    c.drawString(40, y, contacto)
-    y -= 25
+    elements.append(Paragraph(f"<b>{nombre}</b>", styles["Title"]))
+    elements.append(Paragraph(cargo, styles["Normal"]))
+    elements.append(Paragraph(contacto, styles["Normal"]))
+    elements.append(Spacer(1, 12))
 
     # PERFIL
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(40, y, "PERFIL PROFESIONAL")
-    y -= 15
-
-    c.setFont("Helvetica", 9)
-    for line in dividir_texto(data["perfil"], 90):
-        c.drawString(40, y, line)
-        y -= 12
-
-    y -= 10
+    elements.append(Paragraph("<b>PERFIL PROFESIONAL</b>", styles["Heading3"]))
+    elements.append(Paragraph(data.get("perfil", ""), styles["Normal"]))
+    elements.append(Spacer(1, 10))
 
     # EXPERIENCIA
-    if data["experiencia"]:
-        c.setFont("Helvetica-Bold", 11)
-        c.drawString(40, y, "EXPERIENCIA")
-        y -= 15
+    if data.get("experiencia"):
+        elements.append(Paragraph("<b>EXPERIENCIA</b>", styles["Heading3"]))
+        elements.append(
+            ListFlowable(
+                [Paragraph(e, styles["Normal"]) for e in data["experiencia"]]
+            )
+        )
+        elements.append(Spacer(1, 10))
 
-        for exp in data["experiencia"]:
-            for line in dividir_texto(f"- {exp}", 90):
-                c.drawString(40, y, line)
-                y -= 12
-
-        y -= 10
-
-    # COMPETENCIAS
-    if data["competencias"]:
-        c.setFont("Helvetica-Bold", 11)
-        c.drawString(40, y, "COMPETENCIAS")
-        y -= 15
-
-        for comp in data["competencias"]:
-            c.drawString(40, y, f"- {comp}")
-            y -= 12
-
-        y -= 10
+    # FORMACIÓN
+    if data.get("formacion"):
+        elements.append(Paragraph("<b>FORMACIÓN</b>", styles["Heading3"]))
+        elements.append(
+            ListFlowable(
+                [Paragraph(f, styles["Normal"]) for f in data["formacion"]]
+            )
+        )
+        elements.append(Spacer(1, 10))
 
     # CERTIFICACIONES
-    if data["certificaciones"]:
-        c.setFont("Helvetica-Bold", 11)
-        c.drawString(40, y, "CERTIFICACIONES")
-        y -= 15
+    if data.get("certificaciones"):
+        elements.append(Paragraph("<b>CERTIFICACIONES</b>", styles["Heading3"]))
+        elements.append(
+            ListFlowable(
+                [Paragraph(c, styles["Normal"]) for c in data["certificaciones"]]
+            )
+        )
+        elements.append(Spacer(1, 10))
 
-        for cert in data["certificaciones"]:
-            c.drawString(40, y, f"- {cert}")
-            y -= 12
+    # COMPETENCIAS
+    if data.get("competencias"):
+        elements.append(Paragraph("<b>COMPETENCIAS</b>", styles["Heading3"]))
+        elements.append(
+            ListFlowable(
+                [Paragraph(c, styles["Normal"]) for c in data["competencias"]]
+            )
+        )
+        elements.append(Spacer(1, 10))
 
-    c.save()
+    # INFO RELEVANTE
+    if data.get("info_relevante"):
+        elements.append(Paragraph("<b>INFORMACIÓN RELEVANTE</b>", styles["Heading3"]))
+        elements.append(Paragraph(data["info_relevante"], styles["Normal"]))
+
+    doc.build(elements)
+
     buffer.seek(0)
-
     return buffer
 
 # =========================
