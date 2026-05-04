@@ -2,14 +2,14 @@ import os
 import json
 import re
 from io import BytesIO
-from flask import Flask, request, send_file
+from flask import Flask, request, Response
 from flask_cors import CORS
 from openai import OpenAI
 
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.enums import TA_LEFT
+from reportlab.lib.enums import TA_LEFT, TA_RIGHT
 
 import docx
 import PyPDF2
@@ -20,8 +20,12 @@ CORS(app)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 styles = getSampleStyleSheet()
-styles.add(ParagraphStyle(name="BodySmall", fontSize=9, leading=12, alignment=TA_LEFT))
+
+styles.add(ParagraphStyle(name="BodySmall", fontSize=9, leading=12))
 styles.add(ParagraphStyle(name="Section", fontSize=11, leading=14, spaceAfter=6))
+styles.add(ParagraphStyle(name="Right", alignment=TA_RIGHT))
+styles.add(ParagraphStyle(name="Name", fontSize=16, leading=18))
+styles.add(ParagraphStyle(name="Cargo", fontSize=12, leading=14))
 
 
 # =========================
@@ -45,15 +49,14 @@ def extraer_texto(file):
             for page in reader.pages:
                 texto += page.extract_text() or ""
             return texto
-
-    except Exception as e:
-        print("ERROR EXTRACCIÓN:", e)
+    except:
+        pass
 
     return ""
 
 
 # =========================
-# LIMPIAR TEXTO
+# PREPROCESAR
 # =========================
 
 def preprocesar_cv(texto):
@@ -62,7 +65,7 @@ def preprocesar_cv(texto):
 
 
 # =========================
-# LIMPIAR RESPUESTA IA
+# LIMPIAR LISTAS
 # =========================
 
 def limpiar_lista(lista):
@@ -77,7 +80,7 @@ def limpiar_lista(lista):
 
 
 # =========================
-# IA (MEJORADA)
+# IA INTELIGENTE
 # =========================
 
 def mejorar_cv(texto_cv, info_extra):
@@ -85,33 +88,39 @@ def mejorar_cv(texto_cv, info_extra):
     prompt = f"""
 Eres un especialista en reclutamiento técnico industrial.
 
-Debes MEJORAR un CV real.
+Tu tarea es MEJORAR un CV real.
 
 REGLAS:
 - NO inventar información
-- NO eliminar experiencia
-- NO usar ejemplos ficticios
+- NO eliminar experiencia relevante
+- NO usar texto genérico
+- NO usar empresas ficticias
+
+CRITERIOS CLAVE:
+- Si hay muchas experiencias similares → AGRUPARLAS
+- Ejemplo:
+  "Experiencia en empresas como X, Y, Z desempeñándose como Soldador"
+- Priorizar claridad sobre cantidad
+- Mantener lo importante
+- No hacer listas interminables
 
 OBJETIVO:
-- Ordenar información
-- Mejorar redacción
-- Hacerlo claro y legible
+- Facilitar lectura para reclutador
+- Mostrar experiencia real
+- Hacerlo claro y ordenado
 
 CV:
 {texto_cv}
 
-INFO ADICIONAL:
+INFO EXTRA:
 {info_extra}
 
 Devuelve JSON:
 
 {{
-"perfil": "Resumen técnico en máximo 5 líneas",
+"perfil": "...",
 "formacion": ["..."],
-"experiencia": [
-"Cargo - Empresa | Fecha | Función concreta",
-"Cargo - Empresa | Fecha | Función concreta"
-],
+"experiencia": ["..."],
 "certificaciones": ["..."],
 "competencias": ["..."],
 "info_relevante": "..."
@@ -131,18 +140,15 @@ Devuelve JSON:
         try:
             data = json.loads(contenido)
         except:
-            print("JSON inválido")
             data = {}
 
-    except Exception as e:
-        print("ERROR IA:", e)
+    except:
         data = {}
 
     if not isinstance(data, dict):
         data = {}
 
     data["perfil"] = str(data.get("perfil", ""))
-
     data["experiencia"] = limpiar_lista(data.get("experiencia", []))
     data["formacion"] = limpiar_lista(data.get("formacion", []))
     data["certificaciones"] = limpiar_lista(data.get("certificaciones", []))
@@ -153,7 +159,16 @@ Devuelve JSON:
 
 
 # =========================
-# PDF (ESTRUCTURA CORRECTA)
+# FOOTER
+# =========================
+
+def footer(canvas, doc):
+    canvas.setFont("Helvetica", 8)
+    canvas.drawString(40, 20, "Generado por Perfil.Work | www.perfil.work")
+
+
+# =========================
+# PDF
 # =========================
 
 def generar_pdf(nombre, cargo, contacto, data):
@@ -161,24 +176,19 @@ def generar_pdf(nombre, cargo, contacto, data):
     buffer = BytesIO()
 
     doc = SimpleDocTemplate(buffer, pagesize=A4,
-        leftMargin=40, rightMargin=40, topMargin=30, bottomMargin=30)
+        leftMargin=40, rightMargin=40, topMargin=40, bottomMargin=40)
 
     elements = []
 
-    # LOGO
-    if os.path.exists("logo.png"):
-        elements.append(Image("logo.png", width=120, height=40))
-        elements.append(Spacer(1, 10))
-
-    # NOMBRE
-    elements.append(Paragraph(f"<b>{nombre}</b>", styles["Title"]))
-
-    # CARGO
-    elements.append(Paragraph(f"<b>{cargo}</b>", styles["Heading2"]))
-
-    # CONTACTO
+    # HEADER (nombre izquierda + logo derecha)
+    elements.append(Paragraph(f"<b>{nombre}</b>", styles["Name"]))
+    elements.append(Paragraph(f"<b>{cargo}</b>", styles["Cargo"]))
     elements.append(Paragraph(contacto, styles["BodySmall"]))
-    elements.append(Spacer(1, 12))
+    elements.append(Spacer(1, 10))
+
+    if os.path.exists("logo.png"):
+        elements.append(Image("logo.png", width=100, height=30))
+        elements.append(Spacer(1, 10))
 
     # RESUMEN
     if data.get("perfil"):
@@ -214,12 +224,13 @@ def generar_pdf(nombre, cargo, contacto, data):
             elements.append(Paragraph(f"• {x}", styles["BodySmall"]))
         elements.append(Spacer(1, 10))
 
-    # DATOS EXTRA
+    # EXTRA
     if data.get("info_relevante"):
         elements.append(Paragraph("<b>DATOS ADICIONALES</b>", styles["Section"]))
         elements.append(Paragraph(data["info_relevante"], styles["BodySmall"]))
 
-    doc.build(elements)
+    doc.build(elements, onFirstPage=footer, onLaterPages=footer)
+
     buffer.seek(0)
     return buffer
 
@@ -230,35 +241,27 @@ def generar_pdf(nombre, cargo, contacto, data):
 
 @app.route("/crear-cv", methods=["POST"])
 def crear_cv():
-    try:
-        file = request.files.get("cv")
-        info_extra = request.form.get("info_extra", "")
 
-        nombre = request.form.get("nombre", "Nombre")
-        cargo = request.form.get("cargo", "Cargo")
+    file = request.files.get("cv")
+    info_extra = request.form.get("info_extra", "")
 
-        contacto = f"{request.form.get('region','')} | {request.form.get('email','')} | {request.form.get('telefono','')}"
+    nombre = request.form.get("nombre", "Nombre")
+    cargo = request.form.get("cargo", "Cargo")
 
-        texto = extraer_texto(file)
-        texto_procesado = preprocesar_cv(texto)
+    contacto = f"{request.form.get('region','')} | {request.form.get('email','')} | {request.form.get('telefono','')}"
 
-        data = mejorar_cv(texto_procesado, info_extra)
+    texto = extraer_texto(file)
+    texto_procesado = preprocesar_cv(texto)
 
-        pdf = generar_pdf(nombre, cargo, contacto, data)
+    data = mejorar_cv(texto_procesado, info_extra)
 
-       from flask import Response
+    pdf = generar_pdf(nombre, cargo, contacto, data)
 
-return Response(
-    pdf.getvalue(),
-    mimetype="application/pdf",
-    headers={
-        "Content-Disposition": "attachment; filename=cv_mejorado.pdf"
-    }
-)
-
-    except Exception as e:
-        print("ERROR GENERAL:", e)
-        return "Error interno", 500
+    return Response(
+        pdf.getvalue(),
+        mimetype="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=cv_mejorado.pdf"}
+    )
 
 
 if __name__ == "__main__":
