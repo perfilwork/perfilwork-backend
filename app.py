@@ -6,7 +6,7 @@ from flask import Flask, request, send_file
 from flask_cors import CORS
 from openai import OpenAI
 
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, ListFlowable, Image
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.enums import TA_LEFT
@@ -53,15 +53,12 @@ def extraer_texto(file):
 
 
 # =========================
-# PREPROCESAR CV
+# LIMPIAR TEXTO
 # =========================
 
-def normalizar_linea(l):
-    return re.sub(r"\s+", " ", l.strip())
-
 def preprocesar_cv(texto):
-    lineas = [normalizar_linea(l) for l in texto.split("\n") if l.strip()]
-    return "\n".join(lineas[:2000])  # limitar tamaño
+    lineas = [re.sub(r"\s+", " ", l.strip()) for l in texto.split("\n") if l.strip()]
+    return "\n".join(lineas[:2000])
 
 
 # =========================
@@ -80,7 +77,7 @@ def limpiar_lista(lista):
 
 
 # =========================
-# IA SEGURA
+# IA (MEJORADA)
 # =========================
 
 def mejorar_cv(texto_cv, info_extra):
@@ -88,20 +85,33 @@ def mejorar_cv(texto_cv, info_extra):
     prompt = f"""
 Eres un especialista en reclutamiento técnico industrial.
 
-Usa SOLO información del CV.
+Debes MEJORAR un CV real.
+
+REGLAS:
+- NO inventar información
+- NO eliminar experiencia
+- NO usar ejemplos ficticios
+
+OBJETIVO:
+- Ordenar información
+- Mejorar redacción
+- Hacerlo claro y legible
 
 CV:
 {texto_cv}
 
-INFO EXTRA:
+INFO ADICIONAL:
 {info_extra}
 
 Devuelve JSON:
 
 {{
-"perfil": "...",
-"experiencia": ["..."],
+"perfil": "Resumen técnico en máximo 5 líneas",
 "formacion": ["..."],
+"experiencia": [
+"Cargo - Empresa | Fecha | Función concreta",
+"Cargo - Empresa | Fecha | Función concreta"
+],
 "certificaciones": ["..."],
 "competencias": ["..."],
 "info_relevante": "..."
@@ -121,14 +131,13 @@ Devuelve JSON:
         try:
             data = json.loads(contenido)
         except:
-            print("⚠️ JSON inválido")
+            print("JSON inválido")
             data = {}
 
     except Exception as e:
         print("ERROR IA:", e)
         data = {}
 
-    # 🔥 fallback seguro SIEMPRE
     if not isinstance(data, dict):
         data = {}
 
@@ -144,60 +153,71 @@ Devuelve JSON:
 
 
 # =========================
-# PDF SEGURO
+# PDF (ESTRUCTURA CORRECTA)
 # =========================
-
-def safe_paragraph(text):
-    try:
-        return Paragraph(str(text), styles["BodySmall"])
-    except:
-        return Paragraph("", styles["BodySmall"])
-
 
 def generar_pdf(nombre, cargo, contacto, data):
 
     buffer = BytesIO()
 
     doc = SimpleDocTemplate(buffer, pagesize=A4,
-        leftMargin=30, rightMargin=30, topMargin=30, bottomMargin=30)
+        leftMargin=40, rightMargin=40, topMargin=30, bottomMargin=30)
 
     elements = []
 
-    try:
-        if os.path.exists("logo.png"):
-            elements.append(Image("logo.png", width=120, height=40))
-            elements.append(Spacer(1, 8))
-    except:
-        pass
+    # LOGO
+    if os.path.exists("logo.png"):
+        elements.append(Image("logo.png", width=120, height=40))
+        elements.append(Spacer(1, 10))
 
+    # NOMBRE
     elements.append(Paragraph(f"<b>{nombre}</b>", styles["Title"]))
-    elements.append(safe_paragraph(cargo))
-    elements.append(safe_paragraph(contacto))
+
+    # CARGO
+    elements.append(Paragraph(f"<b>{cargo}</b>", styles["Heading2"]))
+
+    # CONTACTO
+    elements.append(Paragraph(contacto, styles["BodySmall"]))
     elements.append(Spacer(1, 12))
 
+    # RESUMEN
     if data.get("perfil"):
-        elements.append(Paragraph("<b>RESUMEN</b>", styles["Section"]))
-        elements.append(safe_paragraph(data["perfil"]))
+        elements.append(Paragraph("<b>RESUMEN TÉCNICO</b>", styles["Section"]))
+        elements.append(Paragraph(data["perfil"], styles["BodySmall"]))
+        elements.append(Spacer(1, 10))
 
-    if data.get("experiencia"):
-        elements.append(Paragraph("<b>EXPERIENCIA</b>", styles["Section"]))
-        elements.append(ListFlowable([safe_paragraph(x) for x in data["experiencia"]]))
-
+    # FORMACIÓN
     if data.get("formacion"):
         elements.append(Paragraph("<b>FORMACIÓN</b>", styles["Section"]))
-        elements.append(ListFlowable([safe_paragraph(x) for x in data["formacion"]]))
+        for x in data["formacion"]:
+            elements.append(Paragraph(f"• {x}", styles["BodySmall"]))
+        elements.append(Spacer(1, 10))
 
+    # EXPERIENCIA
+    if data.get("experiencia"):
+        elements.append(Paragraph("<b>EXPERIENCIA LABORAL</b>", styles["Section"]))
+        for x in data["experiencia"]:
+            elements.append(Paragraph(f"• {x}", styles["BodySmall"]))
+        elements.append(Spacer(1, 10))
+
+    # HABILIDADES
+    if data.get("competencias"):
+        elements.append(Paragraph("<b>HABILIDADES TÉCNICAS</b>", styles["Section"]))
+        for x in data["competencias"]:
+            elements.append(Paragraph(f"• {x}", styles["BodySmall"]))
+        elements.append(Spacer(1, 10))
+
+    # CERTIFICACIONES
     if data.get("certificaciones"):
         elements.append(Paragraph("<b>CERTIFICACIONES</b>", styles["Section"]))
-        elements.append(ListFlowable([safe_paragraph(x) for x in data["certificaciones"]]))
+        for x in data["certificaciones"]:
+            elements.append(Paragraph(f"• {x}", styles["BodySmall"]))
+        elements.append(Spacer(1, 10))
 
-    if data.get("competencias"):
-        elements.append(Paragraph("<b>COMPETENCIAS</b>", styles["Section"]))
-        elements.append(ListFlowable([safe_paragraph(x) for x in data["competencias"]]))
-
+    # DATOS EXTRA
     if data.get("info_relevante"):
-        elements.append(Paragraph("<b>INFO RELEVANTE</b>", styles["Section"]))
-        elements.append(safe_paragraph(data["info_relevante"]))
+        elements.append(Paragraph("<b>DATOS ADICIONALES</b>", styles["Section"]))
+        elements.append(Paragraph(data["info_relevante"], styles["BodySmall"]))
 
     doc.build(elements)
     buffer.seek(0)
@@ -205,7 +225,7 @@ def generar_pdf(nombre, cargo, contacto, data):
 
 
 # =========================
-# ROUTE PRINCIPAL
+# ROUTE
 # =========================
 
 @app.route("/crear-cv", methods=["POST"])
@@ -235,7 +255,7 @@ def crear_cv():
 
     except Exception as e:
         print("ERROR GENERAL:", e)
-        return "Error interno del servidor", 500
+        return "Error interno", 500
 
 
 if __name__ == "__main__":
