@@ -6,7 +6,11 @@ from flask_cors import CORS
 from openai import OpenAI
 
 from reportlab.lib.pagesizes import A4
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
+
+import docx
+import PyPDF2
 
 app = Flask(__name__)
 CORS(app)
@@ -14,35 +18,64 @@ CORS(app)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # =========================
-# IA CONTROLADA
+# EXTRAER TEXTO DE ARCHIVOS
 # =========================
 
-def generar_cv(data):
+def extraer_texto(file):
+
+    filename = file.filename.lower()
+
+    if filename.endswith(".docx"):
+        doc = docx.Document(file)
+        return "\n".join([p.text for p in doc.paragraphs])
+
+    elif filename.endswith(".pdf"):
+        reader = PyPDF2.PdfReader(file)
+        texto = ""
+        for page in reader.pages:
+            texto += page.extract_text() or ""
+        return texto
+
+    return ""
+
+# =========================
+# IA (MEJORA CV REAL)
+# =========================
+
+def mejorar_cv(cv_texto, info_extra):
 
     prompt = f"""
-Devuelve SOLO JSON válido.
+Eres experto en reclutamiento técnico en Chile.
 
-NO agregues notas, explicaciones ni placeholders.
+Tu tarea es MEJORAR un CV existente.
 
-Datos:
-Área: {data.get('area')}
-Experiencia: {data.get('experiencia')}
-Nivel: {data.get('nivel')}
-Detalle: {data.get('detalle')}
+REGLAS CRÍTICAS:
+- NO inventar información
+- NO eliminar información relevante
+- NO resumir en exceso
+- NO agregar placeholders
+- NO escribir notas ni recomendaciones
+- Mantener TODO lo importante del CV original
 
-Formato exacto:
+OBJETIVO:
+- Ordenar
+- Mejorar redacción
+- Hacerlo más claro para reclutadores
+
+CV ORIGINAL:
+{cv_texto}
+
+INFORMACIÓN ADICIONAL DEL CANDIDATO:
+{info_extra}
+
+FORMATO DE SALIDA (SOLO JSON):
 
 {{
   "perfil": "...",
-  "experiencia": ["...", "...", "..."],
-  "competencias": ["...", "...", "..."]
+  "experiencia": ["...", "..."],
+  "competencias": ["...", "..."],
+  "certificaciones": ["...", "..."]
 }}
-
-Reglas:
-- No inventar empresas
-- No usar porcentajes ni métricas falsas
-- No usar texto genérico tipo "profesional altamente motivado"
-- Lenguaje técnico, directo
 """
 
     try:
@@ -53,8 +86,6 @@ Reglas:
         )
 
         contenido = r.choices[0].message.content
-
-        # limpiar posibles errores
         contenido = contenido.replace("```json", "").replace("```", "")
 
         return json.loads(contenido)
@@ -63,78 +94,14 @@ Reglas:
         print("ERROR IA:", e)
 
         return {
-            "perfil": "Técnico con experiencia en su área.",
-            "experiencia": ["Experiencia en funciones técnicas"],
-            "competencias": ["Trabajo en equipo"]
+            "perfil": cv_texto[:200],
+            "experiencia": [],
+            "competencias": [],
+            "certificaciones": []
         }
 
 # =========================
-# PDF MEJORADO
-# =========================
-
-def generar_pdf(nombre, cargo, contacto, data_cv):
-
-    buffer = BytesIO()
-    c = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
-
-    y = height - 60
-
-    # NOMBRE
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(40, y, nombre)
-    y -= 20
-
-    # CARGO
-    c.setFont("Helvetica", 11)
-    c.drawString(40, y, cargo)
-    y -= 15
-
-    # CONTACTO
-    c.setFont("Helvetica", 9)
-    c.drawString(40, y, contacto)
-    y -= 25
-
-    # PERFIL
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(40, y, "PERFIL")
-    y -= 15
-
-    c.setFont("Helvetica", 9)
-    for line in dividir_texto(data_cv["perfil"], 80):
-        c.drawString(40, y, line)
-        y -= 12
-
-    y -= 10
-
-    # EXPERIENCIA
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(40, y, "EXPERIENCIA")
-    y -= 15
-
-    for exp in data_cv["experiencia"]:
-        for line in dividir_texto(f"- {exp}", 80):
-            c.drawString(40, y, line)
-            y -= 12
-
-    y -= 10
-
-    # COMPETENCIAS
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(40, y, "COMPETENCIAS")
-    y -= 15
-
-    for comp in data_cv["competencias"]:
-        c.drawString(40, y, f"- {comp}")
-        y -= 12
-
-    c.save()
-    buffer.seek(0)
-
-    return buffer
-
-# =========================
-# AJUSTE TEXTO (CLAVE)
+# UTIL TEXTO
 # =========================
 
 def dividir_texto(texto, max_chars):
@@ -153,30 +120,114 @@ def dividir_texto(texto, max_chars):
     return lineas
 
 # =========================
+# PDF LIMPIO (NO DISTORSIONADO)
+# =========================
+
+def generar_pdf(nombre, cargo, contacto, data):
+
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+
+    y = height - 60
+
+    # LOGO BIEN PROPORCIONADO
+    try:
+        logo = ImageReader("logo.png")
+        c.drawImage(logo, width - 150, height - 70, width=120, preserveAspectRatio=True)
+    except:
+        pass
+
+    # HEADER
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(40, y, nombre)
+    y -= 20
+
+    c.setFont("Helvetica", 11)
+    c.drawString(40, y, cargo)
+    y -= 15
+
+    c.setFont("Helvetica", 9)
+    c.drawString(40, y, contacto)
+    y -= 25
+
+    # PERFIL
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(40, y, "PERFIL PROFESIONAL")
+    y -= 15
+
+    c.setFont("Helvetica", 9)
+    for line in dividir_texto(data["perfil"], 90):
+        c.drawString(40, y, line)
+        y -= 12
+
+    y -= 10
+
+    # EXPERIENCIA
+    if data["experiencia"]:
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(40, y, "EXPERIENCIA")
+        y -= 15
+
+        for exp in data["experiencia"]:
+            for line in dividir_texto(f"- {exp}", 90):
+                c.drawString(40, y, line)
+                y -= 12
+
+        y -= 10
+
+    # COMPETENCIAS
+    if data["competencias"]:
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(40, y, "COMPETENCIAS")
+        y -= 15
+
+        for comp in data["competencias"]:
+            c.drawString(40, y, f"- {comp}")
+            y -= 12
+
+        y -= 10
+
+    # CERTIFICACIONES
+    if data["certificaciones"]:
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(40, y, "CERTIFICACIONES")
+        y -= 15
+
+        for cert in data["certificaciones"]:
+            c.drawString(40, y, f"- {cert}")
+            y -= 12
+
+    c.save()
+    buffer.seek(0)
+
+    return buffer
+
+# =========================
 # ROUTE
 # =========================
 
-@app.route("/crear-cv", methods=["GET", "POST"])
+@app.route("/crear-cv", methods=["POST"])
 def crear_cv():
 
-    data = request.get_json(silent=True)
+    file = request.files.get("cv")
+    info_extra = request.form.get("info_extra", "")
 
-    if not data:
-        data = request.form.to_dict()
+    nombre = request.form.get("nombre", "Nombre")
+    cargo = request.form.get("cargo", "Cargo")
 
-    nombre = data.get("nombre", "Nombre")
-    cargo = data.get("cargo", "Cargo")
+    contacto = f"{request.form.get('region','')} | {request.form.get('email','')} | {request.form.get('telefono','')}"
 
-    contacto = f"{data.get('region','')} | {data.get('email','')} | {data.get('telefono','')}"
+    texto_cv = extraer_texto(file)
 
-    data_cv = generar_cv(data)
+    data_cv = mejorar_cv(texto_cv, info_extra)
 
     pdf = generar_pdf(nombre, cargo, contacto, data_cv)
 
     return send_file(
         pdf,
         as_attachment=True,
-        download_name="cv_perfil_work.pdf",
+        download_name="cv_mejorado.pdf",
         mimetype="application/pdf"
     )
 
