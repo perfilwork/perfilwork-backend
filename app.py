@@ -1,4 +1,5 @@
 import os
+import json
 from io import BytesIO
 from flask import Flask, request, send_file
 from flask_cors import CORS
@@ -11,136 +12,122 @@ from reportlab.pdfgen import canvas
 app = Flask(__name__)
 CORS(app)
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-client = OpenAI(api_key=OPENAI_API_KEY)
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # =========================
-# IA MEJORADA (GRATIS)
+# IA → JSON CONTROLADO
 # =========================
 
 def generar_cv(data):
 
     prompt = f"""
-Actúa como redactor de CV para perfiles técnicos en Chile.
+Devuelve SOLO JSON válido.
 
-Crea un CV claro, profesional y completo.
+Candidato técnico:
 
-DATOS:
 Área: {data.get('area')}
 Experiencia: {data.get('experiencia')}
 Nivel: {data.get('nivel')}
-Región: {data.get('region')}
 Detalle: {data.get('detalle')}
 
-INSTRUCCIONES:
-- No inventar empresas
+Formato JSON:
+
+{{
+  "perfil": "...",
+  "experiencia": ["...", "...", "..."],
+  "competencias": ["...", "...", "..."]
+}}
+
+Reglas:
 - No usar placeholders
-- Redacción concreta pero completa
-- Que se vea trabajado (no corto)
-- Enfocado en empleabilidad real
-
-FORMATO:
-
-PERFIL PROFESIONAL:
-(4-5 líneas claras)
-
-EXPERIENCIA:
-(4-6 bullets bien explicados)
-
-COMPETENCIAS:
-(5-8 habilidades técnicas)
-
-CERTIFICACIONES:
-(si no hay, omitir)
+- No inventar empresas
+- Texto claro, corto y concreto
+- Nada de explicaciones fuera del JSON
 """
 
     try:
         r = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.6
+            temperature=0.5
         )
-        texto = r.choices[0].message.content
+
+        contenido = r.choices[0].message.content
+
+        return json.loads(contenido)
 
     except Exception as e:
-        print("ERROR OPENAI:", e)
-        texto = f"""
-PERFIL PROFESIONAL:
-Profesional del área {data.get('area')} con experiencia en {data.get('experiencia')}.
+        print("ERROR IA:", e)
 
-EXPERIENCIA:
-- Experiencia en funciones técnicas
-- Trabajo en equipo
-- Cumplimiento de normas
-
-COMPETENCIAS:
-- Trabajo en equipo
-- Seguridad
-"""
-
-    texto = texto.replace("**", "")
-    return texto
+        return {
+            "perfil": "Profesional técnico con experiencia en su área.",
+            "experiencia": ["Experiencia en funciones técnicas"],
+            "competencias": ["Trabajo en equipo"]
+        }
 
 # =========================
-# PDF MEJORADO
+# PDF PRO (MEJORADO)
 # =========================
 
-def generar_pdf(nombre, cargo, contacto, texto_cv):
+def generar_pdf(nombre, cargo, contacto, data_cv):
 
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
+    y = height - 60
+
     # LOGO
     try:
         logo = ImageReader("logo.png")
-        c.drawImage(logo, 20, height - 70, width=140)
+        c.drawImage(logo, width - 150, height - 80, width=120)
     except:
         pass
 
-    y = height - 110
-
     # NOMBRE
     c.setFont("Helvetica-Bold", 18)
-    c.drawString(20, y, nombre)
-    y -= 22
+    c.drawString(40, y, nombre)
+    y -= 20
 
     # CARGO
     c.setFont("Helvetica", 12)
-    c.drawString(20, y, cargo)
-    y -= 16
+    c.drawString(40, y, cargo)
+    y -= 15
 
     # CONTACTO
     c.setFont("Helvetica", 10)
-    c.drawString(20, y, contacto)
+    c.drawString(40, y, contacto)
     y -= 25
 
-    # CONTENIDO
-    for line in texto_cv.split("\n"):
+    # PERFIL
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(40, y, "PERFIL")
+    y -= 15
 
-        line = line.strip()
+    c.setFont("Helvetica", 10)
+    c.drawString(40, y, data_cv["perfil"])
+    y -= 25
 
-        if not line:
-            y -= 8
-            continue
+    # EXPERIENCIA
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(40, y, "EXPERIENCIA")
+    y -= 15
 
-        if line.upper() in [
-            "PERFIL PROFESIONAL:",
-            "EXPERIENCIA:",
-            "COMPETENCIAS:",
-            "CERTIFICACIONES:"
-        ]:
-            c.setFont("Helvetica-Bold", 13)
-            y -= 5
-        else:
-            c.setFont("Helvetica", 10)
+    c.setFont("Helvetica", 10)
+    for exp in data_cv["experiencia"]:
+        c.drawString(50, y, f"- {exp}")
+        y -= 12
 
-        if y < 40:
-            c.showPage()
-            y = height - 40
+    y -= 10
 
-        c.drawString(20, y, line)
-        y -= 14
+    # COMPETENCIAS
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(40, y, "COMPETENCIAS")
+    y -= 15
+
+    for comp in data_cv["competencias"]:
+        c.drawString(50, y, f"- {comp}")
+        y -= 12
 
     c.save()
     buffer.seek(0)
@@ -148,12 +135,8 @@ def generar_pdf(nombre, cargo, contacto, texto_cv):
     return buffer
 
 # =========================
-# ROUTES
+# ROUTE
 # =========================
-
-@app.route("/")
-def home():
-    return "Perfil.Work Backend Online"
 
 @app.route("/crear-cv", methods=["GET", "POST"])
 def crear_cv():
@@ -163,13 +146,14 @@ def crear_cv():
     if not data:
         data = request.form.to_dict()
 
-    nombre = data.get("nombre", "Nombre Apellido")
+    nombre = data.get("nombre", "Nombre")
     cargo = data.get("cargo", "Cargo")
 
     contacto = f"{data.get('region','')} | {data.get('email','')} | {data.get('telefono','')}"
 
-    texto = generar_cv(data)
-    pdf = generar_pdf(nombre, cargo, contacto, texto)
+    data_cv = generar_cv(data)
+
+    pdf = generar_pdf(nombre, cargo, contacto, data_cv)
 
     return send_file(
         pdf,
