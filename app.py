@@ -246,12 +246,15 @@ def crear_cv():
 
         pdf = generar_pdf(nombre, cargo, contacto, data)
 
-        return send_file(
-            pdf,
-            as_attachment=True,
-            download_name="cv_mejorado.pdf",
-            mimetype="application/pdf"
-        )
+       from flask import Response
+
+return Response(
+    pdf.getvalue(),
+    mimetype="application/pdf",
+    headers={
+        "Content-Disposition": "attachment; filename=cv_mejorado.pdf"
+    }
+)
 
     except Exception as e:
         print("ERROR GENERAL:", e)
