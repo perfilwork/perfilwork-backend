@@ -19,7 +19,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # =========================
-# GENERAR CV (GRATIS)
+# GENERAR CV
 # =========================
 
 def generar_cv(data):
@@ -27,9 +27,6 @@ def generar_cv(data):
     prompt = f"""
 Actúa como asistente de redacción de CV.
 
-Tu tarea es ordenar y mejorar la información entregada por el candidato en un formato claro y profesional.
-
-DATOS:
 Área: {data.get('area')}
 Experiencia: {data.get('experiencia')}
 Nivel: {data.get('nivel')}
@@ -38,17 +35,14 @@ Detalle: {data.get('detalle')}
 
 INSTRUCCIONES:
 - No inventar información
-- No usar placeholders como [empresa] o [año]
 - Redacción simple y clara
-- No exagerar ni adornar
-- Mantener formato estándar de CV
+- Formato estándar
 
 FORMATO:
 
 PERFIL PROFESIONAL:
 EXPERIENCIA:
 COMPETENCIAS:
-CERTIFICACIONES:
 """
 
     try:
@@ -61,26 +55,16 @@ CERTIFICACIONES:
 
     except Exception as e:
         print("ERROR OPENAI:", e)
-
         texto = f"""
 PERFIL PROFESIONAL:
 Profesional del área {data.get('area')} con experiencia en {data.get('experiencia')}.
-
-EXPERIENCIA:
-Experiencia en funciones técnicas relacionadas al cargo.
-
-COMPETENCIAS:
-- Trabajo en equipo
-- Cumplimiento de normas de seguridad
 """
 
-    # limpiar markdown
     texto = texto.replace("**", "")
-
     return texto
 
 # =========================
-# GENERAR PDF
+# PDF
 # =========================
 
 def generar_pdf(nombre, cargo, contacto, texto_cv):
@@ -90,30 +74,25 @@ def generar_pdf(nombre, cargo, contacto, texto_cv):
 
     width, height = A4
 
-    # LOGO
     try:
         logo = ImageReader("logo.png")
-        c.drawImage(logo, 20, height - 60, width=120, preserveAspectRatio=True, mask='auto')
+        c.drawImage(logo, 20, height - 60, width=120)
     except:
         pass
 
     y = height - 100
 
-    # NOMBRE
     c.setFont("Helvetica-Bold", 16)
     c.drawString(20, y, nombre)
     y -= 20
 
-    # CARGO
     c.setFont("Helvetica", 12)
     c.drawString(20, y, cargo)
     y -= 15
 
-    # CONTACTO
     c.drawString(20, y, contacto)
     y -= 25
 
-    # CONTENIDO
     for line in texto_cv.split("\n"):
 
         line = line.strip()
@@ -122,13 +101,7 @@ def generar_pdf(nombre, cargo, contacto, texto_cv):
             y -= 8
             continue
 
-        # TITULOS
-        if line.upper() in [
-            "PERFIL PROFESIONAL:",
-            "EXPERIENCIA:",
-            "COMPETENCIAS:",
-            "CERTIFICACIONES:"
-        ]:
+        if line.upper() in ["PERFIL PROFESIONAL:", "EXPERIENCIA:", "COMPETENCIAS:"]:
             c.setFont("Helvetica-Bold", 12)
             y -= 5
         else:
@@ -136,7 +109,6 @@ def generar_pdf(nombre, cargo, contacto, texto_cv):
 
         if y < 40:
             c.showPage()
-            c.setFont("Helvetica", 10)
             y = height - 40
 
         c.drawString(20, y, line)
@@ -155,13 +127,13 @@ def generar_pdf(nombre, cargo, contacto, texto_cv):
 def home():
     return "Perfil.Work Backend Online"
 
-@app.route("/crear-cv", methods=["POST"])
+@app.route("/crear-cv", methods=["GET", "POST"])
 def crear_cv():
 
-    # 🔥 SOPORTE PARA FORMULARIO + JSON
-    if request.is_json:
-        data = request.json
-    else:
+    # 🔥 SOLUCIÓN REAL
+    data = request.get_json(silent=True)
+
+    if not data:
         data = request.form.to_dict()
 
     nombre = data.get("nombre", "Nombre Apellido")
@@ -170,7 +142,6 @@ def crear_cv():
     contacto = f"{data.get('region','')} | {data.get('email','')} | {data.get('telefono','')}"
 
     texto = generar_cv(data)
-
     pdf = generar_pdf(nombre, cargo, contacto, texto)
 
     return send_file(
