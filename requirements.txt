@@ -5,3 +5,9 @@ openai
 reportlab
 python-docx
 PyPDF2
+python-docx
+PyPDF2
+reportlab
+openai
+flask
+flask-cors
