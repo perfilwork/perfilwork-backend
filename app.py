@@ -1,19 +1,15 @@
 import os
 import sqlite3
 from io import BytesIO
-
-from flask import Flask, request, send_file
+from flask import Flask, request, send_file, jsonify
 from flask_cors import CORS
 
 from openai import OpenAI
 
 from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
-
-# =========================
-# APP
-# =========================
 
 app = Flask(__name__)
 CORS(app)
@@ -25,212 +21,116 @@ CORS(app)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-DB_NAME = "leads.db"
-
 # =========================
-# DB INIT
-# =========================
-
-def init_db():
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS leads (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nombre TEXT,
-        correo TEXT,
-        whatsapp TEXT,
-        region TEXT,
-        cargo TEXT,
-        area TEXT,
-        experiencia TEXT,
-        nivel TEXT,
-        sueldo TEXT,
-        detalle TEXT
-    )
-    """)
-
-    conn.commit()
-    conn.close()
-
-init_db()
-
-# =========================
-# SAVE LEAD
-# =========================
-
-def guardar_lead(data):
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-
-    cur.execute("""
-    INSERT INTO leads
-    (nombre, correo, whatsapp, region, cargo, area, experiencia, nivel, sueldo, detalle)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        data["nombre"],
-        data["correo"],
-        data["whatsapp"],
-        data["region"],
-        data["cargo"],
-        data["area"],
-        data["experiencia"],
-        data["nivel"],
-        data["sueldo"],
-        data["detalle"]
-    ))
-
-    conn.commit()
-    conn.close()
-
-# =========================
-# IA + FALLBACK
+# IA CV
 # =========================
 
 def generar_cv(data):
-
     prompt = f"""
-Redacta un CV profesional en español para Chile, estilo técnico industrial.
+Actúa como experto en reclutamiento técnico industrial en Chile.
 
-Datos:
-Nombre: {data['nombre']}
-Cargo objetivo: {data['cargo']}
-Área técnica: {data['area']}
-Experiencia: {data['experiencia']}
-Nivel: {data['nivel']}
-Región: {data['region']}
-Información adicional: {data['detalle']}
+Tu tarea es redactar un CV profesional, claro, breve y altamente empleable.
 
-Entrega SOLO estas secciones:
+DATOS DEL CANDIDATO:
+Área: {data.get('area')}
+Experiencia: {data.get('experiencia')}
+Nivel: {data.get('nivel')}
+Región: {data.get('region')}
+Detalle: {data.get('detalle')}
+
+INSTRUCCIONES CLAVE:
+- NO inventar empresas, fechas ni certificaciones
+- NO usar placeholders como [empresa] o [año]
+- Si falta información, omitirla sin mencionarlo
+- Redacción concreta, sin frases vacías
+- Enfocado en empleabilidad real en industria (minería, plantas, montaje, etc.)
+- Máximo impacto con el menor texto posible
+
+FORMATO:
 
 PERFIL PROFESIONAL:
 EXPERIENCIA DESTACADA:
 COMPETENCIAS TÉCNICAS:
 CERTIFICACIONES Y DATOS RELEVANTES:
 
-No inventes información.
+Tono: directo, técnico, profesional.
 """
 
     try:
         r = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.7
+            temperature=0.5
         )
-
         return r.choices[0].message.content
 
-    except Exception:
+    except Exception as e:
+        print("ERROR OPENAI:", e)
 
+        # fallback simple si falla IA
         return f"""
 PERFIL PROFESIONAL:
-Profesional orientado al área de {data['area']}, con experiencia de {data['experiencia']}. 
-Cuenta con nivel declarado: {data['nivel']}. Enfocado en seguridad, cumplimiento y resultados.
-
-EXPERIENCIA DESTACADA:
-Experiencia relacionada al cargo de {data['cargo']} en funciones técnicas y operativas.
+Profesional del área {data.get('area')} con experiencia en {data.get('experiencia')}.
 
 COMPETENCIAS TÉCNICAS:
-• {data['area']}
-• Trabajo en equipo
-• Resolución de problemas
-• Cumplimiento de procedimientos
-• Orientación a resultados
+- Trabajo en equipo
+- Cumplimiento de normas de seguridad
 
-CERTIFICACIONES Y DATOS RELEVANTES:
-{data['detalle'] if data['detalle'] else 'Información adicional entregada por el candidato.'}
+EXPERIENCIA DESTACADA:
+Experiencia en funciones técnicas relacionadas al cargo.
+
+CERTIFICACIONES:
+No especificadas
 """
 
 # =========================
 # PDF
 # =========================
 
-def wrap_text(texto, largo=95):
-    palabras = texto.split()
-    lineas = []
-    actual = ""
-
-    for palabra in palabras:
-        if len(actual + " " + palabra) <= largo:
-            actual += " " + palabra if actual else palabra
-        else:
-            lineas.append(actual)
-            actual = palabra
-
-    if actual:
-        lineas.append(actual)
-
-    return lineas
-
-def crear_pdf(data, contenido):
-
+def generar_pdf(nombre, cargo, contacto, texto_cv):
     buffer = BytesIO()
-    pdf = canvas.Canvas(buffer, pagesize=A4)
+    c = canvas.Canvas(buffer, pagesize=A4)
 
     width, height = A4
-    y = height - 40
 
     # LOGO
-    if os.path.exists("logo.png"):
-        pdf.drawImage(
-            ImageReader("logo.png"),
-            35,
-            y - 15,
-            width=110,
-            height=30,
-            preserveAspectRatio=True,
-            mask='auto'
-        )
+    try:
+        logo = ImageReader("logo.png")
+        c.drawImage(logo, 20, height - 60, width=120, preserveAspectRatio=True, mask='auto')
+    except:
+        pass
 
-    y -= 50
+    y = height - 100
 
-    # HEADER
-    pdf.setFont("Helvetica-Bold", 18)
-    pdf.drawString(35, y, data["nombre"].upper())
+    # Nombre
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(20, y, nombre)
+    y -= 20
 
-    y -= 24
-    pdf.setFont("Helvetica", 12)
-    pdf.drawString(35, y, data["cargo"])
+    # Cargo
+    c.setFont("Helvetica", 12)
+    c.drawString(20, y, cargo)
+    y -= 15
 
-    y -= 18
-    pdf.drawString(35, y, f"{data['region']} | {data['correo']} | {data['whatsapp']}")
+    # Contacto
+    c.drawString(20, y, contacto)
+    y -= 25
 
-    y -= 28
+    # Texto CV
+    c.setFont("Helvetica", 10)
 
-    # BODY
-    for linea in contenido.split("\n"):
-
-        linea = linea.strip()
-
-        if not linea:
-            y -= 8
-            continue
-
-        if y < 70:
-            pdf.showPage()
+    for line in texto_cv.split("\n"):
+        if y < 40:
+            c.showPage()
+            c.setFont("Helvetica", 10)
             y = height - 40
 
-        if linea.endswith(":"):
-            pdf.setFont("Helvetica-Bold", 12)
-            pdf.drawString(35, y, linea)
-            y -= 18
-            pdf.setFont("Helvetica", 11)
+        c.drawString(20, y, line.strip())
+        y -= 14
 
-        else:
-            pdf.setFont("Helvetica", 11)
+    c.save()
 
-            for l in wrap_text(linea):
-                pdf.drawString(35, y, l)
-                y -= 15
-
-    # FOOTER
-    pdf.setFont("Helvetica", 9)
-    pdf.drawString(35, 25, "Generado por Perfil.Work | www.perfil.work")
-
-    pdf.save()
     buffer.seek(0)
-
     return buffer
 
 # =========================
@@ -241,63 +141,28 @@ def crear_pdf(data, contenido):
 def home():
     return "Perfil.Work Backend Online"
 
-@app.route("/leads")
-def leads():
-
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-
-    cur.execute("""
-    SELECT id,nombre,correo,whatsapp,region,cargo,area
-    FROM leads
-    ORDER BY id DESC
-    """)
-
-    rows = cur.fetchall()
-    conn.close()
-
-    html = "<h2>Leads Perfil.Work</h2><table border=1 cellpadding=8>"
-    html += "<tr><th>ID</th><th>Nombre</th><th>Correo</th><th>WhatsApp</th><th>Región</th><th>Cargo</th><th>Área</th></tr>"
-
-    for row in rows:
-        html += "<tr>" + "".join([f"<td>{x}</td>" for x in row]) + "</tr>"
-
-    html += "</table>"
-
-    return html
-
 @app.route("/crear-cv", methods=["POST"])
 def crear_cv():
+    data = request.json
 
-    data = {
-        "nombre": request.form.get("nombre", ""),
-        "correo": request.form.get("correo", ""),
-        "whatsapp": request.form.get("whatsapp", ""),
-        "region": request.form.get("region", ""),
-        "cargo": request.form.get("cargo", ""),
-        "area": request.form.get("area", ""),
-        "experiencia": request.form.get("experiencia", ""),
-        "nivel": request.form.get("nivel", ""),
-        "sueldo": request.form.get("sueldo", ""),
-        "detalle": request.form.get("detalle", "")
-    }
+    nombre = data.get("nombre", "Nombre Apellido")
+    cargo = data.get("cargo", "Cargo")
+    contacto = f"{data.get('region', '')} | {data.get('email', '')} | {data.get('telefono', '')}"
 
-    guardar_lead(data)
+    texto = generar_cv(data)
 
-    contenido = generar_cv(data)
-
-    pdf = crear_pdf(data, contenido)
-
-    nombre = f"CV_{data['nombre'].replace(' ','_')}.pdf"
+    pdf = generar_pdf(nombre, cargo, contacto, texto)
 
     return send_file(
         pdf,
         as_attachment=True,
-        download_name=nombre,
+        download_name="cv_perfil_work.pdf",
         mimetype="application/pdf"
     )
 
 # =========================
+# RUN
+# =========================
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(debug=True)
