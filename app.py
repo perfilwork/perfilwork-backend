@@ -6,7 +6,6 @@ from flask_cors import CORS
 from openai import OpenAI
 
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 
 app = Flask(__name__)
@@ -15,7 +14,7 @@ CORS(app)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # =========================
-# IA → JSON CONTROLADO
+# IA CONTROLADA
 # =========================
 
 def generar_cv(data):
@@ -23,14 +22,15 @@ def generar_cv(data):
     prompt = f"""
 Devuelve SOLO JSON válido.
 
-Candidato técnico:
+NO agregues notas, explicaciones ni placeholders.
 
+Datos:
 Área: {data.get('area')}
 Experiencia: {data.get('experiencia')}
 Nivel: {data.get('nivel')}
 Detalle: {data.get('detalle')}
 
-Formato JSON:
+Formato exacto:
 
 {{
   "perfil": "...",
@@ -39,20 +39,23 @@ Formato JSON:
 }}
 
 Reglas:
-- No usar placeholders
 - No inventar empresas
-- Texto claro, corto y concreto
-- Nada de explicaciones fuera del JSON
+- No usar porcentajes ni métricas falsas
+- No usar texto genérico tipo "profesional altamente motivado"
+- Lenguaje técnico, directo
 """
 
     try:
         r = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.5
+            temperature=0.4
         )
 
         contenido = r.choices[0].message.content
+
+        # limpiar posibles errores
+        contenido = contenido.replace("```json", "").replace("```", "")
 
         return json.loads(contenido)
 
@@ -60,13 +63,13 @@ Reglas:
         print("ERROR IA:", e)
 
         return {
-            "perfil": "Profesional técnico con experiencia en su área.",
+            "perfil": "Técnico con experiencia en su área.",
             "experiencia": ["Experiencia en funciones técnicas"],
             "competencias": ["Trabajo en equipo"]
         }
 
 # =========================
-# PDF PRO (MEJORADO)
+# PDF MEJORADO
 # =========================
 
 def generar_pdf(nombre, cargo, contacto, data_cv):
@@ -77,62 +80,77 @@ def generar_pdf(nombre, cargo, contacto, data_cv):
 
     y = height - 60
 
-    # LOGO
-    try:
-        logo = ImageReader("logo.png")
-        c.drawImage(logo, width - 150, height - 80, width=120)
-    except:
-        pass
-
     # NOMBRE
-    c.setFont("Helvetica-Bold", 18)
+    c.setFont("Helvetica-Bold", 16)
     c.drawString(40, y, nombre)
     y -= 20
 
     # CARGO
-    c.setFont("Helvetica", 12)
+    c.setFont("Helvetica", 11)
     c.drawString(40, y, cargo)
     y -= 15
 
     # CONTACTO
-    c.setFont("Helvetica", 10)
+    c.setFont("Helvetica", 9)
     c.drawString(40, y, contacto)
     y -= 25
 
     # PERFIL
-    c.setFont("Helvetica-Bold", 12)
+    c.setFont("Helvetica-Bold", 11)
     c.drawString(40, y, "PERFIL")
     y -= 15
 
-    c.setFont("Helvetica", 10)
-    c.drawString(40, y, data_cv["perfil"])
-    y -= 25
-
-    # EXPERIENCIA
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(40, y, "EXPERIENCIA")
-    y -= 15
-
-    c.setFont("Helvetica", 10)
-    for exp in data_cv["experiencia"]:
-        c.drawString(50, y, f"- {exp}")
+    c.setFont("Helvetica", 9)
+    for line in dividir_texto(data_cv["perfil"], 80):
+        c.drawString(40, y, line)
         y -= 12
 
     y -= 10
 
+    # EXPERIENCIA
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(40, y, "EXPERIENCIA")
+    y -= 15
+
+    for exp in data_cv["experiencia"]:
+        for line in dividir_texto(f"- {exp}", 80):
+            c.drawString(40, y, line)
+            y -= 12
+
+    y -= 10
+
     # COMPETENCIAS
-    c.setFont("Helvetica-Bold", 12)
+    c.setFont("Helvetica-Bold", 11)
     c.drawString(40, y, "COMPETENCIAS")
     y -= 15
 
     for comp in data_cv["competencias"]:
-        c.drawString(50, y, f"- {comp}")
+        c.drawString(40, y, f"- {comp}")
         y -= 12
 
     c.save()
     buffer.seek(0)
 
     return buffer
+
+# =========================
+# AJUSTE TEXTO (CLAVE)
+# =========================
+
+def dividir_texto(texto, max_chars):
+    palabras = texto.split()
+    lineas = []
+    actual = ""
+
+    for palabra in palabras:
+        if len(actual) + len(palabra) < max_chars:
+            actual += palabra + " "
+        else:
+            lineas.append(actual)
+            actual = palabra + " "
+
+    lineas.append(actual)
+    return lineas
 
 # =========================
 # ROUTE
