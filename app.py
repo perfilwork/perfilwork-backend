@@ -1,13 +1,10 @@
 import os
-import sqlite3
 from io import BytesIO
-from flask import Flask, request, send_file, jsonify
+from flask import Flask, request, send_file
 from flask_cors import CORS
-
 from openai import OpenAI
 
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 
@@ -22,38 +19,36 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # =========================
-# IA CV
+# GENERAR CV (GRATIS)
 # =========================
 
 def generar_cv(data):
+
     prompt = f"""
-Actúa como experto en reclutamiento técnico industrial en Chile.
+Actúa como asistente de redacción de CV.
 
-Tu tarea es redactar un CV profesional, claro, breve y altamente empleable.
+Tu tarea es ordenar y mejorar la información entregada por el candidato en un formato claro y profesional.
 
-DATOS DEL CANDIDATO:
+DATOS:
 Área: {data.get('area')}
 Experiencia: {data.get('experiencia')}
 Nivel: {data.get('nivel')}
 Región: {data.get('region')}
 Detalle: {data.get('detalle')}
 
-INSTRUCCIONES CLAVE:
-- NO inventar empresas, fechas ni certificaciones
-- NO usar placeholders como [empresa] o [año]
-- Si falta información, omitirla sin mencionarlo
-- Redacción concreta, sin frases vacías
-- Enfocado en empleabilidad real en industria (minería, plantas, montaje, etc.)
-- Máximo impacto con el menor texto posible
+INSTRUCCIONES:
+- No inventar información
+- No usar placeholders como [empresa] o [año]
+- Redacción simple y clara
+- No exagerar ni adornar
+- Mantener formato estándar de CV
 
 FORMATO:
 
 PERFIL PROFESIONAL:
-EXPERIENCIA DESTACADA:
-COMPETENCIAS TÉCNICAS:
-CERTIFICACIONES Y DATOS RELEVANTES:
-
-Tono: directo, técnico, profesional.
+EXPERIENCIA:
+COMPETENCIAS:
+CERTIFICACIONES:
 """
 
     try:
@@ -62,38 +57,40 @@ Tono: directo, técnico, profesional.
             messages=[{"role": "user", "content": prompt}],
             temperature=0.5
         )
-        return r.choices[0].message.content
+        texto = r.choices[0].message.content
 
     except Exception as e:
         print("ERROR OPENAI:", e)
 
-        # fallback simple si falla IA
-        return f"""
+        texto = f"""
 PERFIL PROFESIONAL:
 Profesional del área {data.get('area')} con experiencia en {data.get('experiencia')}.
 
-COMPETENCIAS TÉCNICAS:
-- Trabajo en equipo
-- Cumplimiento de normas de seguridad
-
-EXPERIENCIA DESTACADA:
+EXPERIENCIA:
 Experiencia en funciones técnicas relacionadas al cargo.
 
-CERTIFICACIONES:
-No especificadas
+COMPETENCIAS:
+- Trabajo en equipo
+- Cumplimiento de normas de seguridad
 """
 
+    # limpiar markdown (asteriscos)
+    texto = texto.replace("**", "")
+
+    return texto
+
 # =========================
-# PDF
+# GENERAR PDF
 # =========================
 
 def generar_pdf(nombre, cargo, contacto, texto_cv):
+
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
 
     width, height = A4
 
-    # LOGO
+    # LOGO (si existe)
     try:
         logo = ImageReader("logo.png")
         c.drawImage(logo, 20, height - 60, width=120, preserveAspectRatio=True, mask='auto')
@@ -102,35 +99,52 @@ def generar_pdf(nombre, cargo, contacto, texto_cv):
 
     y = height - 100
 
-    # Nombre
+    # NOMBRE
     c.setFont("Helvetica-Bold", 16)
     c.drawString(20, y, nombre)
     y -= 20
 
-    # Cargo
+    # CARGO
     c.setFont("Helvetica", 12)
     c.drawString(20, y, cargo)
     y -= 15
 
-    # Contacto
+    # CONTACTO
     c.drawString(20, y, contacto)
     y -= 25
 
-    # Texto CV
-    c.setFont("Helvetica", 10)
-
+    # CONTENIDO
     for line in texto_cv.split("\n"):
+
+        line = line.strip()
+
+        if not line:
+            y -= 8
+            continue
+
+        # TITULOS
+        if line.upper() in [
+            "PERFIL PROFESIONAL:",
+            "EXPERIENCIA:",
+            "COMPETENCIAS:",
+            "CERTIFICACIONES:",
+        ]:
+            c.setFont("Helvetica-Bold", 12)
+            y -= 5
+        else:
+            c.setFont("Helvetica", 10)
+
         if y < 40:
             c.showPage()
             c.setFont("Helvetica", 10)
             y = height - 40
 
-        c.drawString(20, y, line.strip())
+        c.drawString(20, y, line)
         y -= 14
 
     c.save()
-
     buffer.seek(0)
+
     return buffer
 
 # =========================
@@ -143,11 +157,13 @@ def home():
 
 @app.route("/crear-cv", methods=["POST"])
 def crear_cv():
+
     data = request.json
 
     nombre = data.get("nombre", "Nombre Apellido")
     cargo = data.get("cargo", "Cargo")
-    contacto = f"{data.get('region', '')} | {data.get('email', '')} | {data.get('telefono', '')}"
+
+    contacto = f"{data.get('region','')} | {data.get('email','')} | {data.get('telefono','')}"
 
     texto = generar_cv(data)
 
