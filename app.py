@@ -45,6 +45,7 @@ def extraer_texto(file):
             for page in reader.pages:
                 texto += page.extract_text() or ""
             return texto
+
     except Exception as e:
         print("ERROR EXTRACCIÓN:", e)
 
@@ -52,66 +53,19 @@ def extraer_texto(file):
 
 
 # =========================
-# PREPROCESAR
+# PREPROCESAR CV
 # =========================
 
 def normalizar_linea(l):
     return re.sub(r"\s+", " ", l.strip())
 
-def es_linea_experiencia(l):
-    return bool(re.match(r"^\d{4}", l)) and ":" in l
-
-def limpiar_experiencia(l):
-    partes = l.split(":")
-    anio = partes[0].strip()
-    resto = partes[1].strip()
-    resto = resto.replace("(", " - ").replace(")", "")
-    return f"{anio} - {resto}"
-
 def preprocesar_cv(texto):
     lineas = [normalizar_linea(l) for l in texto.split("\n") if l.strip()]
-
-    datos, experiencia, formacion = [], [], []
-    modo = None
-
-    for l in lineas:
-        u = l.upper()
-
-        if "ANTECEDENTES PERSONALES" in u:
-            modo = "datos"
-            continue
-        elif "ANTECEDENTES LABORALES" in u:
-            modo = "exp"
-            continue
-        elif "ANTECEDENTES ACADEMICOS" in u or "CAPACIT" in u:
-            modo = "form"
-            continue
-
-        if es_linea_experiencia(l):
-            experiencia.append(limpiar_experiencia(l))
-        elif modo == "form":
-            formacion.append(l)
-        else:
-            datos.append(l)
-
-    texto_limpio = ""
-
-    if datos:
-        texto_limpio += "DATOS PERSONALES:\n" + "\n".join(datos[:15]) + "\n\n"
-
-    if experiencia:
-        texto_limpio += "EXPERIENCIA LABORAL:\n"
-        texto_limpio += "\n".join(f"- {e}" for e in experiencia) + "\n\n"
-
-    if formacion:
-        texto_limpio += "FORMACIÓN:\n"
-        texto_limpio += "\n".join(f"- {f}" for f in formacion)
-
-    return texto_limpio
+    return "\n".join(lineas[:2000])  # limitar tamaño
 
 
 # =========================
-# LIMPIAR RESPUESTA IA (CRÍTICO)
+# LIMPIAR RESPUESTA IA
 # =========================
 
 def limpiar_lista(lista):
@@ -126,7 +80,7 @@ def limpiar_lista(lista):
 
 
 # =========================
-# IA
+# IA SEGURA
 # =========================
 
 def mejorar_cv(texto_cv, info_extra):
@@ -134,20 +88,15 @@ def mejorar_cv(texto_cv, info_extra):
     prompt = f"""
 Eres un especialista en reclutamiento técnico industrial.
 
-Usa SOLO la información del CV.
-
-PROHIBIDO:
-- inventar empresas
-- inventar datos
-- usar texto genérico
+Usa SOLO información del CV.
 
 CV:
 {texto_cv}
 
-INFO ADICIONAL:
+INFO EXTRA:
 {info_extra}
 
-Devuelve SOLO JSON válido:
+Devuelve JSON:
 
 {{
 "perfil": "...",
@@ -167,26 +116,43 @@ Devuelve SOLO JSON válido:
         )
 
         contenido = r.choices[0].message.content.strip()
-        contenido = contenido.replace("```json", "").replace("```", "")
+        contenido = contenido.replace("```json", "").replace("```", "").strip()
 
-        data = json.loads(contenido)
+        try:
+            data = json.loads(contenido)
+        except:
+            print("⚠️ JSON inválido")
+            data = {}
 
     except Exception as e:
         print("ERROR IA:", e)
         data = {}
 
-    # 🔥 NORMALIZACIÓN (EVITA CRASH)
+    # 🔥 fallback seguro SIEMPRE
+    if not isinstance(data, dict):
+        data = {}
+
+    data["perfil"] = str(data.get("perfil", ""))
+
     data["experiencia"] = limpiar_lista(data.get("experiencia", []))
     data["formacion"] = limpiar_lista(data.get("formacion", []))
     data["certificaciones"] = limpiar_lista(data.get("certificaciones", []))
     data["competencias"] = limpiar_lista(data.get("competencias", []))
+    data["info_relevante"] = str(data.get("info_relevante", info_extra))
 
     return data
 
 
 # =========================
-# PDF
+# PDF SEGURO
 # =========================
+
+def safe_paragraph(text):
+    try:
+        return Paragraph(str(text), styles["BodySmall"])
+    except:
+        return Paragraph("", styles["BodySmall"])
+
 
 def generar_pdf(nombre, cargo, contacto, data):
 
@@ -197,38 +163,41 @@ def generar_pdf(nombre, cargo, contacto, data):
 
     elements = []
 
-    if os.path.exists("logo.png"):
-        elements.append(Image("logo.png", width=120, height=40))
-        elements.append(Spacer(1, 8))
+    try:
+        if os.path.exists("logo.png"):
+            elements.append(Image("logo.png", width=120, height=40))
+            elements.append(Spacer(1, 8))
+    except:
+        pass
 
     elements.append(Paragraph(f"<b>{nombre}</b>", styles["Title"]))
-    elements.append(Paragraph(cargo, styles["Normal"]))
-    elements.append(Paragraph(contacto, styles["BodySmall"]))
+    elements.append(safe_paragraph(cargo))
+    elements.append(safe_paragraph(contacto))
     elements.append(Spacer(1, 12))
 
     if data.get("perfil"):
         elements.append(Paragraph("<b>RESUMEN</b>", styles["Section"]))
-        elements.append(Paragraph(data["perfil"], styles["BodySmall"]))
+        elements.append(safe_paragraph(data["perfil"]))
 
     if data.get("experiencia"):
-        elements.append(Paragraph("<b>EXPERIENCIA LABORAL</b>", styles["Section"]))
-        elements.append(ListFlowable([Paragraph(x, styles["BodySmall"]) for x in data["experiencia"]]))
+        elements.append(Paragraph("<b>EXPERIENCIA</b>", styles["Section"]))
+        elements.append(ListFlowable([safe_paragraph(x) for x in data["experiencia"]]))
 
     if data.get("formacion"):
         elements.append(Paragraph("<b>FORMACIÓN</b>", styles["Section"]))
-        elements.append(ListFlowable([Paragraph(x, styles["BodySmall"]) for x in data["formacion"]]))
+        elements.append(ListFlowable([safe_paragraph(x) for x in data["formacion"]]))
 
     if data.get("certificaciones"):
         elements.append(Paragraph("<b>CERTIFICACIONES</b>", styles["Section"]))
-        elements.append(ListFlowable([Paragraph(x, styles["BodySmall"]) for x in data["certificaciones"]]))
+        elements.append(ListFlowable([safe_paragraph(x) for x in data["certificaciones"]]))
 
     if data.get("competencias"):
         elements.append(Paragraph("<b>COMPETENCIAS</b>", styles["Section"]))
-        elements.append(ListFlowable([Paragraph(x, styles["BodySmall"]) for x in data["competencias"]]))
+        elements.append(ListFlowable([safe_paragraph(x) for x in data["competencias"]]))
 
     if data.get("info_relevante"):
-        elements.append(Paragraph("<b>INFORMACIÓN RELEVANTE</b>", styles["Section"]))
-        elements.append(Paragraph(data["info_relevante"], styles["BodySmall"]))
+        elements.append(Paragraph("<b>INFO RELEVANTE</b>", styles["Section"]))
+        elements.append(safe_paragraph(data["info_relevante"]))
 
     doc.build(elements)
     buffer.seek(0)
@@ -236,28 +205,37 @@ def generar_pdf(nombre, cargo, contacto, data):
 
 
 # =========================
-# ROUTE
+# ROUTE PRINCIPAL
 # =========================
 
 @app.route("/crear-cv", methods=["POST"])
 def crear_cv():
+    try:
+        file = request.files.get("cv")
+        info_extra = request.form.get("info_extra", "")
 
-    file = request.files.get("cv")
-    info_extra = request.form.get("info_extra", "")
+        nombre = request.form.get("nombre", "Nombre")
+        cargo = request.form.get("cargo", "Cargo")
 
-    nombre = request.form.get("nombre", "Nombre")
-    cargo = request.form.get("cargo", "Cargo")
+        contacto = f"{request.form.get('region','')} | {request.form.get('email','')} | {request.form.get('telefono','')}"
 
-    contacto = f"{request.form.get('region','')} | {request.form.get('email','')} | {request.form.get('telefono','')}"
+        texto = extraer_texto(file)
+        texto_procesado = preprocesar_cv(texto)
 
-    texto = extraer_texto(file)
-    texto_procesado = preprocesar_cv(texto)
+        data = mejorar_cv(texto_procesado, info_extra)
 
-    data = mejorar_cv(texto_procesado, info_extra)
+        pdf = generar_pdf(nombre, cargo, contacto, data)
 
-    pdf = generar_pdf(nombre, cargo, contacto, data)
+        return send_file(
+            pdf,
+            as_attachment=True,
+            download_name="cv_mejorado.pdf",
+            mimetype="application/pdf"
+        )
 
-    return send_file(pdf, as_attachment=True, download_name="cv_mejorado.pdf", mimetype="application/pdf")
+    except Exception as e:
+        print("ERROR GENERAL:", e)
+        return "Error interno del servidor", 500
 
 
 if __name__ == "__main__":
