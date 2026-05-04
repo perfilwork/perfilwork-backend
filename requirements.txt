@@ -1,13 +1,7 @@
 flask
 gunicorn
 flask-cors
-openai
+openai>=1.0.0
 reportlab
 python-docx
 PyPDF2
-python-docx
-PyPDF2
-reportlab
-openai
-flask
-flask-cors
