@@ -11,22 +11,21 @@ from reportlab.pdfgen import canvas
 app = Flask(__name__)
 CORS(app)
 
-# =========================
-# CONFIG
-# =========================
-
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # =========================
-# GENERAR CV
+# IA MEJORADA (GRATIS)
 # =========================
 
 def generar_cv(data):
 
     prompt = f"""
-Actúa como asistente de redacción de CV.
+Actúa como redactor de CV para perfiles técnicos en Chile.
 
+Crea un CV claro, profesional y completo.
+
+DATOS:
 Área: {data.get('area')}
 Experiencia: {data.get('experiencia')}
 Nivel: {data.get('nivel')}
@@ -34,22 +33,32 @@ Región: {data.get('region')}
 Detalle: {data.get('detalle')}
 
 INSTRUCCIONES:
-- No inventar información
-- Redacción simple y clara
-- Formato estándar
+- No inventar empresas
+- No usar placeholders
+- Redacción concreta pero completa
+- Que se vea trabajado (no corto)
+- Enfocado en empleabilidad real
 
 FORMATO:
 
 PERFIL PROFESIONAL:
+(4-5 líneas claras)
+
 EXPERIENCIA:
+(4-6 bullets bien explicados)
+
 COMPETENCIAS:
+(5-8 habilidades técnicas)
+
+CERTIFICACIONES:
+(si no hay, omitir)
 """
 
     try:
         r = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.5
+            temperature=0.6
         )
         texto = r.choices[0].message.content
 
@@ -58,41 +67,55 @@ COMPETENCIAS:
         texto = f"""
 PERFIL PROFESIONAL:
 Profesional del área {data.get('area')} con experiencia en {data.get('experiencia')}.
+
+EXPERIENCIA:
+- Experiencia en funciones técnicas
+- Trabajo en equipo
+- Cumplimiento de normas
+
+COMPETENCIAS:
+- Trabajo en equipo
+- Seguridad
 """
 
     texto = texto.replace("**", "")
     return texto
 
 # =========================
-# PDF
+# PDF MEJORADO
 # =========================
 
 def generar_pdf(nombre, cargo, contacto, texto_cv):
 
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
-
     width, height = A4
 
+    # LOGO
     try:
         logo = ImageReader("logo.png")
-        c.drawImage(logo, 20, height - 60, width=120)
+        c.drawImage(logo, 20, height - 70, width=140)
     except:
         pass
 
-    y = height - 100
+    y = height - 110
 
-    c.setFont("Helvetica-Bold", 16)
+    # NOMBRE
+    c.setFont("Helvetica-Bold", 18)
     c.drawString(20, y, nombre)
-    y -= 20
+    y -= 22
 
+    # CARGO
     c.setFont("Helvetica", 12)
     c.drawString(20, y, cargo)
-    y -= 15
+    y -= 16
 
+    # CONTACTO
+    c.setFont("Helvetica", 10)
     c.drawString(20, y, contacto)
     y -= 25
 
+    # CONTENIDO
     for line in texto_cv.split("\n"):
 
         line = line.strip()
@@ -101,8 +124,13 @@ def generar_pdf(nombre, cargo, contacto, texto_cv):
             y -= 8
             continue
 
-        if line.upper() in ["PERFIL PROFESIONAL:", "EXPERIENCIA:", "COMPETENCIAS:"]:
-            c.setFont("Helvetica-Bold", 12)
+        if line.upper() in [
+            "PERFIL PROFESIONAL:",
+            "EXPERIENCIA:",
+            "COMPETENCIAS:",
+            "CERTIFICACIONES:"
+        ]:
+            c.setFont("Helvetica-Bold", 13)
             y -= 5
         else:
             c.setFont("Helvetica", 10)
@@ -130,7 +158,6 @@ def home():
 @app.route("/crear-cv", methods=["GET", "POST"])
 def crear_cv():
 
-    # 🔥 SOLUCIÓN REAL
     data = request.get_json(silent=True)
 
     if not data:
@@ -150,10 +177,6 @@ def crear_cv():
         download_name="cv_perfil_work.pdf",
         mimetype="application/pdf"
     )
-
-# =========================
-# RUN
-# =========================
 
 if __name__ == "__main__":
     app.run(debug=True)
