@@ -91,63 +91,13 @@ def mejorar_cv(texto_cv, info_extra):
     prompt = f"""
 Eres un especialista en reclutamiento técnico industrial.
 
-Tu tarea es MEJORAR un CV real.
+Debes mejorar este CV real.
 
-OBJETIVO:
-- Hacerlo más claro
-- Más legible
-- Más profesional
-- Fácil de revisar por reclutadores
+NO inventes información.
 
-REGLAS:
-- NO inventar información
-- NO eliminar experiencia relevante
-- NO usar frases genéricas
-- NO repetir funciones similares innecesariamente
+Devuelve SOLO JSON válido.
 
-CRITERIOS INTELIGENTES:
-
-1. Si el candidato tiene MUCHAS experiencias similares:
-- AGRUPAR experiencias repetitivas
-- Ejemplo:
-  "Experiencia desempeñándose como Soldador en empresas como..."
-- Luego resumir funciones comunes
-
-2. Si existen trabajos IMPORTANTES o DIFERENTES:
-- Mantenerlos separados y detallados
-
-3. Priorizar:
-- especialidad técnica
-- años de experiencia
-- industrias
-- certificaciones
-- habilidades concretas
-
-4. Las funciones deben ser ACCIONES REALES:
-✔ "Diagnóstico de fallas"
-✔ "Soldadura MIG/TIG"
-✔ "Lectura de planos"
-
-NO:
-✘ "Responsable de..."
-✘ "Encargado de..."
-
-ESTRUCTURA:
-
-1. Resumen técnico breve
-2. Formación
-3. Experiencia laboral
-4. Habilidades técnicas
-5. Certificaciones
-6. Datos adicionales
-
-CV:
-{texto_cv}
-
-INFORMACIÓN ADICIONAL:
-{info_extra}
-
-Devuelve JSON válido:
+Formato:
 
 {{
 "perfil": "...",
@@ -157,47 +107,74 @@ Devuelve JSON válido:
 "certificaciones": ["..."],
 "info_relevante": "..."
 }}
+
+CV:
+{texto_cv}
+
+Información adicional:
+{info_extra}
 """
 
     try:
 
-        print("⏳ Enviando CV a OpenAI...")
-
         r = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-    {
-        "role": "system",
-        "content": "Responde SOLO en JSON válido. No agregues texto extra."
-    },
-    {
-        "role": "user",
-        "content": prompt
-    }
-],
+                {
+                    "role": "system",
+                    "content": "Responde SOLO en JSON válido."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
             temperature=0.2,
             max_tokens=700
         )
 
-        print("✅ Respuesta recibida")
-
         contenido = r.choices[0].message.content.strip()
-        contenido = contenido.replace("```json", "").replace("```", "").strip()
+
+        print("RESPUESTA IA:")
+        print(contenido)
+
+        # limpiar markdown
+        contenido = contenido.replace("```json", "")
+        contenido = contenido.replace("```", "")
+        contenido = contenido.strip()
 
         try:
             data = json.loads(contenido)
+
         except Exception as e:
+
             print("ERROR JSON:", e)
-            data = {}
+
+            # fallback inteligente
+            data = {
+                "perfil": info_extra,
+                "formacion": [],
+                "experiencia": [],
+                "competencias": [],
+                "certificaciones": [],
+                "info_relevante": info_extra
+            }
 
     except Exception as e:
-        print("ERROR OPENAI:", e)
-        data = {}
 
-    if not isinstance(data, dict):
-        data = {}
+        print("ERROR OPENAI:", e)
+
+        data = {
+            "perfil": info_extra,
+            "formacion": [],
+            "experiencia": [],
+            "competencias": [],
+            "certificaciones": [],
+            "info_relevante": info_extra
+        }
 
     data["perfil"] = str(data.get("perfil", ""))
+
     data["experiencia"] = limpiar_lista(data.get("experiencia", []))
     data["formacion"] = limpiar_lista(data.get("formacion", []))
     data["certificaciones"] = limpiar_lista(data.get("certificaciones", []))
