@@ -2,9 +2,11 @@ import os
 import json
 import re
 from io import BytesIO
+
 from flask import Flask, request, Response
 from flask_cors import CORS
 from openai import OpenAI
+from supabase import create_client
 
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -13,29 +15,76 @@ from reportlab.lib.pagesizes import A4
 import docx
 import PyPDF2
 
-app = Flask(__name__)
-from supabase import create_client
 
-SUPABASE_URL = https://kybticlgyamdcthljcov.supabase.co
-SUPABASE_KEY = sb_publishable_du1cl5DoY-5BAI1hdUQVow_Hs70jTzB
+# =========================
+# APP
+# =========================
+
+app = Flask(__name__)
+CORS(app)
+
+
+# =========================
+# OPENAI
+# =========================
+
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY")
+)
+
+
+# =========================
+# SUPABASE
+# =========================
+
+SUPABASE_URL = "https://kybticlgyamdcthljcov.supabase.co"
+
+SUPABASE_KEY = "PEGA_AQUI_TU_PUBLISHABLE_KEY_COMPLETA"
 
 supabase = create_client(
     SUPABASE_URL,
     SUPABASE_KEY
 )
-CORS(app)
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# =========================
+# STYLES
+# =========================
 
 styles = getSampleStyleSheet()
 
-styles.add(ParagraphStyle(name="BodySmall", fontSize=9, leading=11))
-styles.add(ParagraphStyle(name="Section", fontSize=11, leading=14, spaceAfter=6))
+styles.add(
+    ParagraphStyle(
+        name="BodySmall",
+        fontSize=9,
+        leading=11
+    )
+)
 
-# 🔥 nombre más grande
-styles.add(ParagraphStyle(name="Name", fontSize=22, leading=24))
+styles.add(
+    ParagraphStyle(
+        name="Section",
+        fontSize=11,
+        leading=14,
+        spaceAfter=6
+    )
+)
 
-styles.add(ParagraphStyle(name="Cargo", fontSize=13, leading=15))
+styles.add(
+    ParagraphStyle(
+        name="Name",
+        fontSize=22,
+        leading=24
+    )
+)
+
+styles.add(
+    ParagraphStyle(
+        name="Cargo",
+        fontSize=13,
+        leading=15
+    )
+)
 
 
 # =========================
@@ -56,7 +105,11 @@ def extraer_texto(file):
             doc = docx.Document(file)
 
             texto = "\n".join(
-                [p.text for p in doc.paragraphs if p.text.strip()]
+                [
+                    p.text
+                    for p in doc.paragraphs
+                    if p.text.strip()
+                ]
             )
 
             return texto
@@ -96,7 +149,7 @@ def preprocesar_cv(texto):
 
 
 # =========================
-# NORMALIZAR LISTAS
+# NORMALIZAR LISTA
 # =========================
 
 def normalizar_lista(valor):
@@ -111,7 +164,7 @@ def normalizar_lista(valor):
 
 
 # =========================
-# LIMPIAR LISTAS
+# LIMPIAR LISTA
 # =========================
 
 def limpiar_lista(lista):
@@ -125,7 +178,11 @@ def limpiar_lista(lista):
         if isinstance(item, dict):
 
             texto = " - ".join(
-                [str(v) for v in item.values() if v]
+                [
+                    str(v)
+                    for v in item.values()
+                    if v
+                ]
             )
 
             resultado.append(texto)
@@ -144,7 +201,11 @@ def extraer_json(texto):
 
     try:
 
-        match = re.search(r"\{.*\}", texto, re.DOTALL)
+        match = re.search(
+            r"\{.*\}",
+            texto,
+            re.DOTALL
+        )
 
         if match:
             return json.loads(match.group())
@@ -165,6 +226,7 @@ def mejorar_cv(texto_cv, info_extra):
 Eres especialista en reclutamiento técnico industrial.
 
 Debes transformar este CV en una versión:
+
 - clara
 - profesional
 - compacta
@@ -172,6 +234,7 @@ Debes transformar este CV en una versión:
 - idealmente de 1 página
 
 IMPORTANTE:
+
 - Lee TODO el CV
 - NO inventes información
 - NO elimines experiencia importante
@@ -192,6 +255,7 @@ Ejemplo deseado:
 "Experiencia desempeñándose como Soldador Industrial en empresas como Salfa Montajes, SK Industrial, Huachipato y Belfi."
 
 Luego resumir:
+
 - industrias
 - tipos de proyectos
 - funciones técnicas
@@ -200,6 +264,7 @@ Luego resumir:
 La experiencia debe verse profesional y compacta.
 
 SOLO detallar:
+
 - trabajos recientes
 - trabajos relevantes
 - trabajos técnicamente distintos
@@ -242,13 +307,27 @@ Información adicional:
             max_tokens=1300
         )
 
-        contenido = respuesta.choices[0].message.content.strip()
+        contenido = (
+            respuesta
+            .choices[0]
+            .message
+            .content
+            .strip()
+        )
 
         print("===== RESPUESTA IA =====")
         print(contenido)
 
-        contenido = contenido.replace("```json", "")
-        contenido = contenido.replace("```", "")
+        contenido = contenido.replace(
+            "```json",
+            ""
+        )
+
+        contenido = contenido.replace(
+            "```",
+            ""
+        )
+
         contenido = contenido.strip()
 
         data = extraer_json(contenido)
@@ -269,7 +348,9 @@ Información adicional:
             "info_relevante": info_extra
         }
 
-    data["perfil"] = str(data.get("perfil", ""))
+    data["perfil"] = str(
+        data.get("perfil", "")
+    )
 
     data["experiencia"] = limpiar_lista(
         data.get("experiencia", [])
@@ -300,7 +381,10 @@ Información adicional:
 
 def footer(canvas, doc):
 
-    canvas.setFont("Helvetica", 8)
+    canvas.setFont(
+        "Helvetica",
+        8
+    )
 
     canvas.drawString(
         40,
@@ -335,67 +419,100 @@ def generar_pdf(nombre, cargo, contacto, data):
 
             logo = Image(
                 "logo.png",
-                width=160,
+                width=95,
+                height=32
             )
 
             elements.append(logo)
-            elements.append(Spacer(1, 8))
+
+            elements.append(
+                Spacer(1, 8)
+            )
 
         except Exception as e:
             print("ERROR LOGO:", e)
 
     # HEADER
     elements.append(
-        Paragraph(f"<b>{nombre}</b>", styles["Name"])
+        Paragraph(
+            f"<b>{nombre}</b>",
+            styles["Name"]
+        )
     )
 
     elements.append(
-        Paragraph(f"<b>{cargo}</b>", styles["Cargo"])
+        Paragraph(
+            f"<b>{cargo}</b>",
+            styles["Cargo"]
+        )
     )
 
     elements.append(
-        Paragraph(contacto, styles["BodySmall"])
+        Paragraph(
+            contacto,
+            styles["BodySmall"]
+        )
     )
 
-    elements.append(Spacer(1, 12))
+    elements.append(
+        Spacer(1, 12)
+    )
 
     # PERFIL
     if data.get("perfil"):
 
         elements.append(
-            Paragraph("<b>RESUMEN TÉCNICO</b>", styles["Section"])
+            Paragraph(
+                "<b>RESUMEN TÉCNICO</b>",
+                styles["Section"]
+            )
         )
 
         elements.append(
-            Paragraph(data["perfil"], styles["BodySmall"])
+            Paragraph(
+                data["perfil"],
+                styles["BodySmall"]
+            )
         )
 
-        elements.append(Spacer(1, 8))
+        elements.append(
+            Spacer(1, 8)
+        )
 
     # EXPERIENCIA
-    # EXPERIENCIA
-if data.get("experiencia"):
+    if data.get("experiencia"):
 
-    elements.append(
-        Paragraph("<b>EXPERIENCIA LABORAL</b>", styles["Section"])
-    )
+        elements.append(
+            Paragraph(
+                "<b>EXPERIENCIA LABORAL</b>",
+                styles["Section"]
+            )
+        )
 
-    experiencia_texto = "<br/>".join([
-        x.lstrip("-• ").strip()
-        for x in data["experiencia"][:8]
-    ])
+        experiencia_texto = "<br/>".join([
+            x.lstrip("-• ").strip()
+            for x in data["experiencia"][:8]
+        ])
 
-    elements.append(
-        Paragraph(experiencia_texto, styles["BodySmall"])
-    )
+        elements.append(
+            Paragraph(
+                experiencia_texto,
+                styles["BodySmall"]
+            )
+        )
 
-    elements.append(Spacer(1, 8))
+        elements.append(
+            Spacer(1, 8)
+        )
 
     # FORMACIÓN
     if data.get("formacion"):
 
         elements.append(
-            Paragraph("<b>FORMACIÓN</b>", styles["Section"])
+            Paragraph(
+                "<b>FORMACIÓN</b>",
+                styles["Section"]
+            )
         )
 
         for x in data["formacion"][:5]:
@@ -403,33 +520,50 @@ if data.get("experiencia"):
             limpio = x.lstrip("-• ").strip()
 
             elements.append(
-                Paragraph(f"• {limpio}", styles["BodySmall"])
+                Paragraph(
+                    f"• {limpio}",
+                    styles["BodySmall"]
+                )
             )
 
-        elements.append(Spacer(1, 8))
+        elements.append(
+            Spacer(1, 8)
+        )
 
     # HABILIDADES
     if data.get("competencias"):
 
         elements.append(
-            Paragraph("<b>HABILIDADES TÉCNICAS</b>", styles["Section"])
+            Paragraph(
+                "<b>HABILIDADES TÉCNICAS</b>",
+                styles["Section"]
+            )
         )
 
-        habilidades = ", ".join(
-            [x.lstrip("-• ").strip() for x in data["competencias"][:12]]
+        habilidades = ", ".join([
+            x.lstrip("-• ").strip()
+            for x in data["competencias"][:12]
+        ])
+
+        elements.append(
+            Paragraph(
+                habilidades,
+                styles["BodySmall"]
+            )
         )
 
         elements.append(
-            Paragraph(habilidades, styles["BodySmall"])
+            Spacer(1, 8)
         )
-
-        elements.append(Spacer(1, 8))
 
     # CERTIFICACIONES
     if data.get("certificaciones"):
 
         elements.append(
-            Paragraph("<b>CERTIFICACIONES</b>", styles["Section"])
+            Paragraph(
+                "<b>CERTIFICACIONES</b>",
+                styles["Section"]
+            )
         )
 
         for x in data["certificaciones"][:5]:
@@ -437,20 +571,31 @@ if data.get("experiencia"):
             limpio = x.lstrip("-• ").strip()
 
             elements.append(
-                Paragraph(f"• {limpio}", styles["BodySmall"])
+                Paragraph(
+                    f"• {limpio}",
+                    styles["BodySmall"]
+                )
             )
 
-        elements.append(Spacer(1, 8))
+        elements.append(
+            Spacer(1, 8)
+        )
 
     # EXTRA
     if data.get("info_relevante"):
 
         elements.append(
-            Paragraph("<b>DATOS ADICIONALES</b>", styles["Section"])
+            Paragraph(
+                "<b>DATOS ADICIONALES</b>",
+                styles["Section"]
+            )
         )
 
         elements.append(
-            Paragraph(data["info_relevante"], styles["BodySmall"])
+            Paragraph(
+                data["info_relevante"],
+                styles["BodySmall"]
+            )
         )
 
     doc.build(
@@ -493,15 +638,83 @@ def crear_cv():
             "Cargo"
         )
 
-        contacto = (
-            f"{request.form.get('region','')} | "
-            f"{request.form.get('email','')} | "
-            f"{request.form.get('telefono','')}"
+        email = request.form.get(
+            "email",
+            ""
         )
+
+        telefono = request.form.get(
+            "telefono",
+            ""
+        )
+
+        region = request.form.get(
+            "region",
+            ""
+        )
+
+        area = request.form.get(
+            "area",
+            ""
+        )
+
+        experiencia = request.form.get(
+            "experiencia",
+            ""
+        )
+
+        nivel = request.form.get(
+            "nivel",
+            ""
+        )
+
+        sueldo = request.form.get(
+            "sueldo",
+            ""
+        )
+
+        contacto = (
+            f"{region} | "
+            f"{email} | "
+            f"{telefono}"
+        )
+
+        # =========================
+        # GUARDAR EN SUPABASE
+        # =========================
+
+        try:
+
+            supabase.table(
+                "candidatos"
+            ).insert({
+                "nombre": nombre,
+                "email": email,
+                "telefono": telefono,
+                "region": region,
+                "cargo": cargo,
+                "area": area,
+                "experiencia": experiencia,
+                "nivel": nivel,
+                "sueldo": sueldo,
+                "info_extra": info_extra,
+                "cv_url": ""
+            }).execute()
+
+            print("✅ Candidato guardado")
+
+        except Exception as e:
+            print("ERROR SUPABASE:", e)
+
+        # =========================
+        # EXTRAER TEXTO
+        # =========================
 
         texto = extraer_texto(file)
 
-        texto_procesado = preprocesar_cv(texto)
+        texto_procesado = preprocesar_cv(
+            texto
+        )
 
         data = mejorar_cv(
             texto_procesado,
