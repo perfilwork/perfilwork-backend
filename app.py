@@ -14,6 +14,15 @@ import docx
 import PyPDF2
 
 app = Flask(__name__)
+from supabase import create_client
+
+SUPABASE_URL = https://kybticlgyamdcthljcov.supabase.co
+SUPABASE_KEY = sb_publishable_du1cl5DoY-5BAI1hdUQVow_Hs70jTzB
+
+supabase = create_client(
+    SUPABASE_URL,
+    SUPABASE_KEY
+)
 CORS(app)
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
