@@ -364,21 +364,23 @@ def generar_pdf(nombre, cargo, contacto, data):
         elements.append(Spacer(1, 8))
 
     # EXPERIENCIA
-    if data.get("experiencia"):
+    # EXPERIENCIA
+if data.get("experiencia"):
 
-        elements.append(
-            Paragraph("<b>EXPERIENCIA LABORAL</b>", styles["Section"])
-        )
+    elements.append(
+        Paragraph("<b>EXPERIENCIA LABORAL</b>", styles["Section"])
+    )
 
-        for x in data["experiencia"][:12]:
+    experiencia_texto = "<br/>".join([
+        x.lstrip("-• ").strip()
+        for x in data["experiencia"][:8]
+    ])
 
-            limpio = x.lstrip("-• ").strip()
+    elements.append(
+        Paragraph(experiencia_texto, styles["BodySmall"])
+    )
 
-            elements.append(
-                Paragraph(f"• {limpio}", styles["BodySmall"])
-            )
-
-        elements.append(Spacer(1, 8))
+    elements.append(Spacer(1, 8))
 
     # FORMACIÓN
     if data.get("formacion"):
