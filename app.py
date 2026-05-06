@@ -49,8 +49,9 @@ def extraer_texto(file):
             for page in reader.pages:
                 texto += page.extract_text() or ""
             return texto
-    except:
-        pass
+
+    except Exception as e:
+        print("ERROR EXTRACCIÓN:", e)
 
     return ""
 
@@ -70,12 +71,14 @@ def preprocesar_cv(texto):
 
 def limpiar_lista(lista):
     resultado = []
+
     for item in lista:
         if isinstance(item, dict):
             texto = " - ".join([str(v) for v in item.values() if v])
             resultado.append(texto)
         else:
             resultado.append(str(item))
+
     return resultado
 
 
@@ -146,32 +149,39 @@ INFORMACIÓN ADICIONAL:
 
 Devuelve JSON válido:
 
-{
+{{
 "perfil": "...",
 "formacion": ["..."],
 "experiencia": ["..."],
 "competencias": ["..."],
 "certificaciones": ["..."],
 "info_relevante": "..."
-}
+}}
 """
 
     try:
+
+        print("⏳ Enviando CV a OpenAI...")
+
         r = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2
         )
 
+        print("✅ Respuesta recibida")
+
         contenido = r.choices[0].message.content.strip()
         contenido = contenido.replace("```json", "").replace("```", "").strip()
 
         try:
             data = json.loads(contenido)
-        except:
+        except Exception as e:
+            print("ERROR JSON:", e)
             data = {}
 
-    except:
+    except Exception as e:
+        print("ERROR OPENAI:", e)
         data = {}
 
     if not isinstance(data, dict):
@@ -204,20 +214,30 @@ def generar_pdf(nombre, cargo, contacto, data):
 
     buffer = BytesIO()
 
-    doc = SimpleDocTemplate(buffer, pagesize=A4,
-        leftMargin=40, rightMargin=40, topMargin=40, bottomMargin=40)
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=40,
+        rightMargin=40,
+        topMargin=40,
+        bottomMargin=40
+    )
 
     elements = []
 
-    # HEADER (nombre izquierda + logo derecha)
+    # HEADER
     elements.append(Paragraph(f"<b>{nombre}</b>", styles["Name"]))
     elements.append(Paragraph(f"<b>{cargo}</b>", styles["Cargo"]))
     elements.append(Paragraph(contacto, styles["BodySmall"]))
     elements.append(Spacer(1, 10))
 
+    # LOGO
     if os.path.exists("logo.png"):
-        elements.append(Image("logo.png", width=100, height=30))
-        elements.append(Spacer(1, 10))
+        try:
+            elements.append(Image("logo.png", width=100, height=30))
+            elements.append(Spacer(1, 10))
+        except Exception as e:
+            print("ERROR LOGO:", e)
 
     # RESUMEN
     if data.get("perfil"):
@@ -228,29 +248,37 @@ def generar_pdf(nombre, cargo, contacto, data):
     # FORMACIÓN
     if data.get("formacion"):
         elements.append(Paragraph("<b>FORMACIÓN</b>", styles["Section"]))
+
         for x in data["formacion"]:
             elements.append(Paragraph(f"• {x}", styles["BodySmall"]))
+
         elements.append(Spacer(1, 10))
 
     # EXPERIENCIA
     if data.get("experiencia"):
         elements.append(Paragraph("<b>EXPERIENCIA LABORAL</b>", styles["Section"]))
+
         for x in data["experiencia"]:
             elements.append(Paragraph(f"• {x}", styles["BodySmall"]))
+
         elements.append(Spacer(1, 10))
 
     # HABILIDADES
     if data.get("competencias"):
         elements.append(Paragraph("<b>HABILIDADES TÉCNICAS</b>", styles["Section"]))
+
         for x in data["competencias"]:
             elements.append(Paragraph(f"• {x}", styles["BodySmall"]))
+
         elements.append(Spacer(1, 10))
 
     # CERTIFICACIONES
     if data.get("certificaciones"):
         elements.append(Paragraph("<b>CERTIFICACIONES</b>", styles["Section"]))
+
         for x in data["certificaciones"]:
             elements.append(Paragraph(f"• {x}", styles["BodySmall"]))
+
         elements.append(Spacer(1, 10))
 
     # EXTRA
@@ -261,6 +289,7 @@ def generar_pdf(nombre, cargo, contacto, data):
     doc.build(elements, onFirstPage=footer, onLaterPages=footer)
 
     buffer.seek(0)
+
     return buffer
 
 
@@ -268,29 +297,52 @@ def generar_pdf(nombre, cargo, contacto, data):
 # ROUTE
 # =========================
 
-@app.route("/crear-cv", methods=["POST"])
+@app.route("/crear-cv", methods=["GET", "POST"])
 def crear_cv():
 
-    file = request.files.get("cv")
-    info_extra = request.form.get("info_extra", "")
+    # 🔥 evita Method Not Allowed cuando Render despierta
+    if request.method == "GET":
+        return "Servicio activo"
 
-    nombre = request.form.get("nombre", "Nombre")
-    cargo = request.form.get("cargo", "Cargo")
+    try:
 
-    contacto = f"{request.form.get('region','')} | {request.form.get('email','')} | {request.form.get('telefono','')}"
+        file = request.files.get("cv")
+        info_extra = request.form.get("info_extra", "")
 
-    texto = extraer_texto(file)
-    texto_procesado = preprocesar_cv(texto)
+        nombre = request.form.get("nombre", "Nombre")
+        cargo = request.form.get("cargo", "Cargo")
 
-    data = mejorar_cv(texto_procesado, info_extra)
+        contacto = (
+            f"{request.form.get('region','')} | "
+            f"{request.form.get('email','')} | "
+            f"{request.form.get('telefono','')}"
+        )
 
-    pdf = generar_pdf(nombre, cargo, contacto, data)
+        texto = extraer_texto(file)
 
-    return Response(
-        pdf.getvalue(),
-        mimetype="application/pdf",
-        headers={"Content-Disposition": "attachment; filename=cv_mejorado.pdf"}
-    )
+        print("📄 Texto extraído")
+
+        texto_procesado = preprocesar_cv(texto)
+
+        data = mejorar_cv(texto_procesado, info_extra)
+
+        print("🧠 CV mejorado")
+
+        pdf = generar_pdf(nombre, cargo, contacto, data)
+
+        print("📄 PDF generado")
+
+        return Response(
+            pdf.getvalue(),
+            mimetype="application/pdf",
+            headers={
+                "Content-Disposition": "attachment; filename=cv_mejorado.pdf"
+            }
+        )
+
+    except Exception as e:
+        print("ERROR GENERAL:", e)
+        return "Error interno del servidor", 500
 
 
 if __name__ == "__main__":
