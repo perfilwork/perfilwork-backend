@@ -20,7 +20,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 styles = getSampleStyleSheet()
 
-styles.add(ParagraphStyle(name="BodySmall", fontSize=9, leading=12))
+styles.add(ParagraphStyle(name="BodySmall", fontSize=9, leading=11))
 styles.add(ParagraphStyle(name="Section", fontSize=11, leading=14, spaceAfter=6))
 styles.add(ParagraphStyle(name="Name", fontSize=16, leading=18))
 styles.add(ParagraphStyle(name="Cargo", fontSize=12, leading=14))
@@ -43,9 +43,11 @@ def extraer_texto(file):
 
             doc = docx.Document(file)
 
-            return "\n".join(
+            texto = "\n".join(
                 [p.text for p in doc.paragraphs if p.text.strip()]
             )
+
+            return texto
 
         elif filename.endswith(".pdf"):
 
@@ -76,7 +78,10 @@ def preprocesar_cv(texto):
         if l.strip()
     ]
 
-    return "\n".join(lineas[:350])
+    texto_limpio = "\n".join(lineas)
+
+    # límite razonable sin matar Render
+    return texto_limpio[:12000]
 
 
 # =========================
@@ -129,9 +134,33 @@ def extraer_json(texto):
 def mejorar_cv(texto_cv, info_extra):
 
     prompt = f"""
-Mejora este CV técnico industrial.
+Eres especialista en reclutamiento técnico industrial.
 
-NO inventes información.
+Debes transformar este CV en una versión:
+- clara
+- profesional
+- compacta
+- recruiter-friendly
+- idealmente de 1 página
+
+IMPORTANTE:
+- Lee TODO el CV
+- NO inventes información
+- NO elimines experiencia importante
+- Resume experiencias repetitivas
+- Agrupa trabajos similares
+- Prioriza especialidades técnicas
+- Prioriza lectura rápida
+
+SI hay muchos trabajos similares:
+- resumir trayectoria
+- mencionar empresas relevantes
+- evitar listas interminables
+
+SOLO detallar:
+- trabajos recientes
+- trabajos relevantes
+- trabajos técnicamente distintos
 
 Devuelve SOLO JSON válido.
 
@@ -145,13 +174,6 @@ Formato exacto:
 "certificaciones": ["..."],
 "info_relevante": "..."
 }}
-
-Reglas:
-- resumir experiencia repetitiva
-- mantener especialidades técnicas
-- redactar profesionalmente
-- no repetir funciones
-- priorizar lectura rápida para reclutadores
 
 CV:
 {texto_cv}
@@ -175,7 +197,7 @@ Información adicional:
                 }
             ],
             temperature=0.2,
-            max_tokens=700
+            max_tokens=1300
         )
 
         contenido = respuesta.choices[0].message.content.strip()
@@ -258,8 +280,8 @@ def generar_pdf(nombre, cargo, contacto, data):
         pagesize=A4,
         leftMargin=40,
         rightMargin=40,
-        topMargin=40,
-        bottomMargin=40
+        topMargin=35,
+        bottomMargin=35
     )
 
     elements = []
@@ -271,12 +293,12 @@ def generar_pdf(nombre, cargo, contacto, data):
 
             logo = Image(
                 "logo.png",
-                width=140,
-                height=52
+                width=135,
+                height=48
             )
 
             elements.append(logo)
-            elements.append(Spacer(1, 12))
+            elements.append(Spacer(1, 10))
 
         except Exception as e:
             print("ERROR LOGO:", e)
@@ -294,7 +316,7 @@ def generar_pdf(nombre, cargo, contacto, data):
         Paragraph(contacto, styles["BodySmall"])
     )
 
-    elements.append(Spacer(1, 14))
+    elements.append(Spacer(1, 12))
 
     # PERFIL
     if data.get("perfil"):
@@ -307,24 +329,7 @@ def generar_pdf(nombre, cargo, contacto, data):
             Paragraph(data["perfil"], styles["BodySmall"])
         )
 
-        elements.append(Spacer(1, 10))
-
-    # FORMACIÓN
-    if data.get("formacion"):
-
-        elements.append(
-            Paragraph("<b>FORMACIÓN</b>", styles["Section"])
-        )
-
-        for x in data["formacion"]:
-
-            limpio = x.lstrip("-• ").strip()
-
-            elements.append(
-                Paragraph(f"• {limpio}", styles["BodySmall"])
-            )
-
-        elements.append(Spacer(1, 10))
+        elements.append(Spacer(1, 8))
 
     # EXPERIENCIA
     if data.get("experiencia"):
@@ -333,7 +338,7 @@ def generar_pdf(nombre, cargo, contacto, data):
             Paragraph("<b>EXPERIENCIA LABORAL</b>", styles["Section"])
         )
 
-        for x in data["experiencia"]:
+        for x in data["experiencia"][:8]:
 
             limpio = x.lstrip("-• ").strip()
 
@@ -341,7 +346,24 @@ def generar_pdf(nombre, cargo, contacto, data):
                 Paragraph(f"• {limpio}", styles["BodySmall"])
             )
 
-        elements.append(Spacer(1, 10))
+        elements.append(Spacer(1, 8))
+
+    # FORMACIÓN
+    if data.get("formacion"):
+
+        elements.append(
+            Paragraph("<b>FORMACIÓN</b>", styles["Section"])
+        )
+
+        for x in data["formacion"][:5]:
+
+            limpio = x.lstrip("-• ").strip()
+
+            elements.append(
+                Paragraph(f"• {limpio}", styles["BodySmall"])
+            )
+
+        elements.append(Spacer(1, 8))
 
     # HABILIDADES
     if data.get("competencias"):
@@ -350,15 +372,15 @@ def generar_pdf(nombre, cargo, contacto, data):
             Paragraph("<b>HABILIDADES TÉCNICAS</b>", styles["Section"])
         )
 
-        for x in data["competencias"]:
+        habilidades = ", ".join(
+            [x.lstrip("-• ").strip() for x in data["competencias"][:12]]
+        )
 
-            limpio = x.lstrip("-• ").strip()
+        elements.append(
+            Paragraph(habilidades, styles["BodySmall"])
+        )
 
-            elements.append(
-                Paragraph(f"• {limpio}", styles["BodySmall"])
-            )
-
-        elements.append(Spacer(1, 10))
+        elements.append(Spacer(1, 8))
 
     # CERTIFICACIONES
     if data.get("certificaciones"):
@@ -367,7 +389,7 @@ def generar_pdf(nombre, cargo, contacto, data):
             Paragraph("<b>CERTIFICACIONES</b>", styles["Section"])
         )
 
-        for x in data["certificaciones"]:
+        for x in data["certificaciones"][:5]:
 
             limpio = x.lstrip("-• ").strip()
 
@@ -375,7 +397,7 @@ def generar_pdf(nombre, cargo, contacto, data):
                 Paragraph(f"• {limpio}", styles["BodySmall"])
             )
 
-        elements.append(Spacer(1, 10))
+        elements.append(Spacer(1, 8))
 
     # EXTRA
     if data.get("info_relevante"):
