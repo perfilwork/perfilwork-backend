@@ -171,10 +171,17 @@ IMPORTANTE:
 - Prioriza especialidades técnicas
 - Prioriza lectura rápida
 
-SI hay muchos trabajos similares:
-- resumir trayectoria
-- mencionar empresas relevantes
-- evitar listas interminables
+SI existen múltiples trabajos similares:
+
+- NO listar empresa por empresa innecesariamente
+- AGRUPAR trayectoria por tipo de experiencia
+- mencionar empresas principales solamente
+- resumir funciones comunes
+
+Ejemplo deseado:
+"Experiencia desempeñándose como Soldador Industrial en empresas como Salfa Montajes, SK Industrial, Huachipato y Belfi."
+
+Luego resumir funciones técnicas relevantes.
 
 SOLO detallar:
 - trabajos recientes
@@ -313,7 +320,6 @@ def generar_pdf(nombre, cargo, contacto, data):
             logo = Image(
                 "logo.png",
                 width=160,
-                height=60
             )
 
             elements.append(logo)
@@ -357,7 +363,7 @@ def generar_pdf(nombre, cargo, contacto, data):
             Paragraph("<b>EXPERIENCIA LABORAL</b>", styles["Section"])
         )
 
-        for x in data["experiencia"][:10]:
+        for x in data["experiencia"][:15]:
 
             limpio = x.lstrip("-• ").strip()
 
