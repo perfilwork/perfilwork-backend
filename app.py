@@ -39,7 +39,7 @@ client = OpenAI(
 
 SUPABASE_URL = "https://kybticlgyamdcthljcov.supabase.co"
 
-SUPABASE_KEY = "PEGA_AQUI_TU_PUBLISHABLE_KEY_COMPLETA"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt5YnRpY2xneWFtZGN0aGxqY292Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwOTA3MzIsImV4cCI6MjA5MzY2NjczMn0.mvriFY5D6eVUJRwObnu-dvcJoPnJ3yPFFYM0PDuDrNQ"
 
 supabase = create_client(
     SUPABASE_URL,
