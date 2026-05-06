@@ -62,7 +62,7 @@ def extraer_texto(file):
 
 def preprocesar_cv(texto):
     lineas = [re.sub(r"\s+", " ", l.strip()) for l in texto.split("\n") if l.strip()]
-    return "\n".join(lineas[:2000])
+    return "\n".join(lineas[:350])
 
 
 # =========================
