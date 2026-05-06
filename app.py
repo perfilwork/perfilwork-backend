@@ -90,41 +90,70 @@ Eres un especialista en reclutamiento técnico industrial.
 
 Tu tarea es MEJORAR un CV real.
 
+OBJETIVO:
+- Hacerlo más claro
+- Más legible
+- Más profesional
+- Fácil de revisar por reclutadores
+
 REGLAS:
 - NO inventar información
 - NO eliminar experiencia relevante
-- NO usar texto genérico
-- NO usar empresas ficticias
+- NO usar frases genéricas
+- NO repetir funciones similares innecesariamente
 
-CRITERIOS CLAVE:
-- Si hay muchas experiencias similares → AGRUPARLAS
+CRITERIOS INTELIGENTES:
+
+1. Si el candidato tiene MUCHAS experiencias similares:
+- AGRUPAR experiencias repetitivas
 - Ejemplo:
-  "Experiencia en empresas como X, Y, Z desempeñándose como Soldador"
-- Priorizar claridad sobre cantidad
-- Mantener lo importante
-- No hacer listas interminables
+  "Experiencia desempeñándose como Soldador en empresas como..."
+- Luego resumir funciones comunes
 
-OBJETIVO:
-- Facilitar lectura para reclutador
-- Mostrar experiencia real
-- Hacerlo claro y ordenado
+2. Si existen trabajos IMPORTANTES o DIFERENTES:
+- Mantenerlos separados y detallados
+
+3. Priorizar:
+- especialidad técnica
+- años de experiencia
+- industrias
+- certificaciones
+- habilidades concretas
+
+4. Las funciones deben ser ACCIONES REALES:
+✔ "Diagnóstico de fallas"
+✔ "Soldadura MIG/TIG"
+✔ "Lectura de planos"
+
+NO:
+✘ "Responsable de..."
+✘ "Encargado de..."
+
+ESTRUCTURA:
+
+1. Resumen técnico breve
+2. Formación
+3. Experiencia laboral
+4. Habilidades técnicas
+5. Certificaciones
+6. Datos adicionales
 
 CV:
 {texto_cv}
 
-INFO EXTRA:
+INFORMACIÓN ADICIONAL:
 {info_extra}
 
-Devuelve JSON:
+Devuelve JSON válido:
 
-{{
+{
 "perfil": "...",
 "formacion": ["..."],
 "experiencia": ["..."],
-"certificaciones": ["..."],
 "competencias": ["..."],
+"certificaciones": ["..."],
 "info_relevante": "..."
-}}
+}
 """
 
     try:
