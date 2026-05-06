@@ -22,8 +22,11 @@ styles = getSampleStyleSheet()
 
 styles.add(ParagraphStyle(name="BodySmall", fontSize=9, leading=11))
 styles.add(ParagraphStyle(name="Section", fontSize=11, leading=14, spaceAfter=6))
-styles.add(ParagraphStyle(name="Name", fontSize=16, leading=18))
-styles.add(ParagraphStyle(name="Cargo", fontSize=12, leading=14))
+
+# 🔥 nombre más grande
+styles.add(ParagraphStyle(name="Name", fontSize=22, leading=24))
+
+styles.add(ParagraphStyle(name="Cargo", fontSize=13, leading=15))
 
 
 # =========================
@@ -80,8 +83,22 @@ def preprocesar_cv(texto):
 
     texto_limpio = "\n".join(lineas)
 
-    # límite razonable sin matar Render
     return texto_limpio[:12000]
+
+
+# =========================
+# NORMALIZAR LISTAS
+# =========================
+
+def normalizar_lista(valor):
+
+    if isinstance(valor, list):
+        return valor
+
+    if isinstance(valor, str):
+        return [valor]
+
+    return []
 
 
 # =========================
@@ -89,6 +106,8 @@ def preprocesar_cv(texto):
 # =========================
 
 def limpiar_lista(lista):
+
+    lista = normalizar_lista(lista)
 
     resultado = []
 
@@ -293,12 +312,12 @@ def generar_pdf(nombre, cargo, contacto, data):
 
             logo = Image(
                 "logo.png",
-                width=135,
-                height=48
+                width=160,
+                height=60
             )
 
             elements.append(logo)
-            elements.append(Spacer(1, 10))
+            elements.append(Spacer(1, 8))
 
         except Exception as e:
             print("ERROR LOGO:", e)
@@ -338,7 +357,7 @@ def generar_pdf(nombre, cargo, contacto, data):
             Paragraph("<b>EXPERIENCIA LABORAL</b>", styles["Section"])
         )
 
-        for x in data["experiencia"][:8]:
+        for x in data["experiencia"][:10]:
 
             limpio = x.lstrip("-• ").strip()
 
@@ -458,18 +477,12 @@ def crear_cv():
 
         texto = extraer_texto(file)
 
-        print("===== TEXTO EXTRAÍDO =====")
-        print(texto[:2000])
-
         texto_procesado = preprocesar_cv(texto)
 
         data = mejorar_cv(
             texto_procesado,
             info_extra
         )
-
-        print("===== DATA FINAL =====")
-        print(data)
 
         pdf = generar_pdf(
             nombre,
