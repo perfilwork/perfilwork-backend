@@ -226,19 +226,19 @@ def generar_pdf(nombre, cargo, contacto, data):
 
     elements = []
 
+    # LOGO ARRIBA IZQUIERDA
+    if os.path.exists("logo.png"):
+        try:
+            elements.append(Image("logo.png", width=120, height=45))
+            elements.append(Spacer(1, 10))
+        except Exception as e:
+            print("ERROR LOGO:", e)
+
     # HEADER
     elements.append(Paragraph(f"<b>{nombre}</b>", styles["Name"]))
     elements.append(Paragraph(f"<b>{cargo}</b>", styles["Cargo"]))
     elements.append(Paragraph(contacto, styles["BodySmall"]))
-    elements.append(Spacer(1, 10))
-
-    # LOGO
-    if os.path.exists("logo.png"):
-        try:
-            elements.append(Image("logo.png", width=100, height=30))
-            elements.append(Spacer(1, 10))
-        except Exception as e:
-            print("ERROR LOGO:", e)
+    elements.append(Spacer(1, 12))
 
     # RESUMEN
     if data.get("perfil"):
@@ -251,7 +251,8 @@ def generar_pdf(nombre, cargo, contacto, data):
         elements.append(Paragraph("<b>FORMACIÓN</b>", styles["Section"]))
 
         for x in data["formacion"]:
-            elements.append(Paragraph(f"• {x}", styles["BodySmall"]))
+            limpio = x.lstrip("- ").strip()
+            elements.append(Paragraph(f"• {limpio}", styles["BodySmall"]))
 
         elements.append(Spacer(1, 10))
 
@@ -260,7 +261,8 @@ def generar_pdf(nombre, cargo, contacto, data):
         elements.append(Paragraph("<b>EXPERIENCIA LABORAL</b>", styles["Section"]))
 
         for x in data["experiencia"]:
-            elements.append(Paragraph(f"• {x}", styles["BodySmall"]))
+            limpio = x.lstrip("- ").strip()
+            elements.append(Paragraph(f"• {limpio}", styles["BodySmall"]))
 
         elements.append(Spacer(1, 10))
 
@@ -269,7 +271,8 @@ def generar_pdf(nombre, cargo, contacto, data):
         elements.append(Paragraph("<b>HABILIDADES TÉCNICAS</b>", styles["Section"]))
 
         for x in data["competencias"]:
-            elements.append(Paragraph(f"• {x}", styles["BodySmall"]))
+            limpio = x.lstrip("- ").strip()
+            elements.append(Paragraph(f"• {limpio}", styles["BodySmall"]))
 
         elements.append(Spacer(1, 10))
 
@@ -278,16 +281,21 @@ def generar_pdf(nombre, cargo, contacto, data):
         elements.append(Paragraph("<b>CERTIFICACIONES</b>", styles["Section"]))
 
         for x in data["certificaciones"]:
-            elements.append(Paragraph(f"• {x}", styles["BodySmall"]))
+            limpio = x.lstrip("- ").strip()
+            elements.append(Paragraph(f"• {limpio}", styles["BodySmall"]))
 
         elements.append(Spacer(1, 10))
 
-    # EXTRA
+    # DATOS ADICIONALES
     if data.get("info_relevante"):
         elements.append(Paragraph("<b>DATOS ADICIONALES</b>", styles["Section"]))
         elements.append(Paragraph(data["info_relevante"], styles["BodySmall"]))
 
-    doc.build(elements, onFirstPage=footer, onLaterPages=footer)
+    doc.build(
+        elements,
+        onFirstPage=footer,
+        onLaterPages=footer
+    )
 
     buffer.seek(0)
 
