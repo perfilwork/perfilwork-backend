@@ -1,3 +1,4 @@
+````python
 import os
 import json
 import re
@@ -8,9 +9,21 @@ from flask_cors import CORS
 from openai import OpenAI
 from supabase import create_client
 
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    HRFlowable
+)
+
+from reportlab.lib.styles import (
+    getSampleStyleSheet,
+    ParagraphStyle
+)
+
 from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.pdfbase.pdfmetrics import stringWidth
 
 import docx
 import PyPDF2
@@ -39,7 +52,7 @@ client = OpenAI(
 
 SUPABASE_URL = "https://kybticlgyamdcthljcov.supabase.co"
 
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt5YnRpY2xneWFtZGN0aGxqY292Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwOTA3MzIsImV4cCI6MjA5MzY2NjczMn0.mvriFY5D6eVUJRwObnu-dvcJoPnJ3yPFFYM0PDuDrNQ"
+SUPABASE_KEY = "TU_SUPABASE_KEY"
 
 supabase = create_client(
     SUPABASE_URL,
@@ -55,34 +68,68 @@ styles = getSampleStyleSheet()
 
 styles.add(
     ParagraphStyle(
-        name="BodySmall",
-        fontSize=9,
-        leading=11
-    )
-)
-
-styles.add(
-    ParagraphStyle(
-        name="Section",
-        fontSize=11,
-        leading=14,
+        name="Body",
+        fontName="Helvetica",
+        fontSize=10.5,
+        leading=15,
+        textColor=colors.HexColor("#1e293b"),
         spaceAfter=6
     )
 )
 
 styles.add(
     ParagraphStyle(
+        name="Section",
+        fontName="Helvetica-Bold",
+        fontSize=12.5,
+        leading=18,
+        textColor=colors.HexColor("#0f172a"),
+        spaceBefore=10,
+        spaceAfter=10
+    )
+)
+
+styles.add(
+    ParagraphStyle(
         name="Name",
-        fontSize=22,
-        leading=24
+        fontName="Helvetica-Bold",
+        fontSize=24,
+        leading=28,
+        textColor=colors.HexColor("#0f172a"),
+        spaceAfter=4
     )
 )
 
 styles.add(
     ParagraphStyle(
         name="Cargo",
+        fontName="Helvetica-Bold",
         fontSize=13,
-        leading=15
+        leading=18,
+        textColor=colors.HexColor("#2563eb"),
+        spaceAfter=8
+    )
+)
+
+styles.add(
+    ParagraphStyle(
+        name="Contact",
+        fontName="Helvetica",
+        fontSize=9.5,
+        leading=13,
+        textColor=colors.HexColor("#475569"),
+        spaceAfter=18
+    )
+)
+
+styles.add(
+    ParagraphStyle(
+        name="Experience",
+        fontName="Helvetica",
+        fontSize=10.5,
+        leading=15,
+        textColor=colors.HexColor("#1e293b"),
+        spaceAfter=10
     )
 )
 
@@ -226,52 +273,17 @@ def mejorar_cv(texto_cv, info_extra):
 Eres especialista en reclutamiento técnico industrial.
 
 Debes transformar este CV en una versión:
-
 - clara
 - profesional
-- compacta
 - recruiter-friendly
-- idealmente de 1 página
+- compacta
+- legible
 
-IMPORTANTE:
-
-- Lee TODO el CV
-- NO inventes información
-- NO elimines experiencia importante
-- Resume experiencias repetitivas
-- Agrupa trabajos similares
-- Prioriza especialidades técnicas
-- Prioriza lectura rápida
-
-SI existen múltiples trabajos similares:
-
-- NO listar 15 empresas una por una
-- AGRUPAR trayectoria por especialidad
-- mencionar solo empresas principales
-- resumir funciones repetitivas
-
-Ejemplo deseado:
-
-"Experiencia desempeñándose como Soldador Industrial en empresas como Salfa Montajes, SK Industrial, Huachipato y Belfi."
-
-Luego resumir:
-
-- industrias
-- tipos de proyectos
-- funciones técnicas
-- especialidades
-
-La experiencia debe verse profesional y compacta.
-
-SOLO detallar:
-
-- trabajos recientes
-- trabajos relevantes
-- trabajos técnicamente distintos
+NO inventes información.
 
 Devuelve SOLO JSON válido.
 
-Formato exacto:
+Formato:
 
 {{
 "perfil": "...",
@@ -315,9 +327,6 @@ Información adicional:
             .strip()
         )
 
-        print("===== RESPUESTA IA =====")
-        print(contenido)
-
         contenido = contenido.replace(
             "```json",
             ""
@@ -327,8 +336,6 @@ Información adicional:
             "```",
             ""
         )
-
-        contenido = contenido.strip()
 
         data = extraer_json(contenido)
 
@@ -376,20 +383,45 @@ Información adicional:
 
 
 # =========================
-# FOOTER
+# HEADER / FOOTER
 # =========================
 
-def footer(canvas, doc):
+def draw_header_footer(canvas, doc):
 
-    canvas.setFont(
-        "Helvetica",
-        8
-    )
+    width, height = A4
+
+    # LOGO
+    if os.path.exists("logo.png"):
+
+        try:
+
+            canvas.drawImage(
+                "logo.png",
+                40,
+                height - 52,
+                width=92,
+                height=30,
+                preserveAspectRatio=True,
+                mask='auto'
+            )
+
+        except Exception as e:
+            print("ERROR LOGO:", e)
+
+    # FOOTER
+    canvas.setFont("Helvetica", 8)
+    canvas.setFillColor(colors.HexColor("#94a3b8"))
 
     canvas.drawString(
         40,
-        20,
-        "Generado por Perfil.Work | www.perfil.work"
+        18,
+        "Perfil.Work · Talento Técnico y Profesional"
+    )
+
+    canvas.drawRightString(
+        width - 40,
+        18,
+        "www.perfil.work"
     )
 
 
@@ -406,43 +438,23 @@ def generar_pdf(nombre, cargo, contacto, data):
         pagesize=A4,
         leftMargin=40,
         rightMargin=40,
-        topMargin=35,
-        bottomMargin=35
+        topMargin=72,
+        bottomMargin=40
     )
 
     elements = []
 
-    # LOGO
-    if os.path.exists("logo.png"):
-
-        try:
-
-            logo = Image(
-                "logo.png",
-                width=95,
-                height=32
-            )
-
-            elements.append(logo)
-
-            elements.append(
-                Spacer(1, 8)
-            )
-
-        except Exception as e:
-            print("ERROR LOGO:", e)
-
-    # HEADER
+    # HEADER TEXTO
     elements.append(
         Paragraph(
-            f"<b>{nombre}</b>",
+            nombre,
             styles["Name"]
         )
     )
 
     elements.append(
         Paragraph(
-            f"<b>{cargo}</b>",
+            cargo,
             styles["Cargo"]
         )
     )
@@ -450,12 +462,20 @@ def generar_pdf(nombre, cargo, contacto, data):
     elements.append(
         Paragraph(
             contacto,
-            styles["BodySmall"]
+            styles["Contact"]
         )
     )
 
     elements.append(
-        Spacer(1, 12)
+        HRFlowable(
+            width="100%",
+            thickness=0.6,
+            color=colors.HexColor("#cbd5e1")
+        )
+    )
+
+    elements.append(
+        Spacer(1, 14)
     )
 
     # PERFIL
@@ -463,7 +483,7 @@ def generar_pdf(nombre, cargo, contacto, data):
 
         elements.append(
             Paragraph(
-                "<b>RESUMEN TÉCNICO</b>",
+                "RESUMEN TÉCNICO",
                 styles["Section"]
             )
         )
@@ -471,12 +491,8 @@ def generar_pdf(nombre, cargo, contacto, data):
         elements.append(
             Paragraph(
                 data["perfil"],
-                styles["BodySmall"]
+                styles["Body"]
             )
-        )
-
-        elements.append(
-            Spacer(1, 8)
         )
 
     # EXPERIENCIA
@@ -484,58 +500,49 @@ def generar_pdf(nombre, cargo, contacto, data):
 
         elements.append(
             Paragraph(
-                "<b>EXPERIENCIA LABORAL</b>",
+                "EXPERIENCIA LABORAL",
                 styles["Section"]
             )
         )
 
-        experiencia_texto = "<br/>".join([
-            x.lstrip("-• ").strip()
-            for x in data["experiencia"][:8]
-        ])
+        for experiencia in data["experiencia"][:8]:
 
-        elements.append(
-            Paragraph(
-                experiencia_texto,
-                styles["BodySmall"]
+            limpio = experiencia.lstrip("-• ").strip()
+
+            elements.append(
+                Paragraph(
+                    f"• {limpio}",
+                    styles["Experience"]
+                )
             )
-        )
-
-        elements.append(
-            Spacer(1, 8)
-        )
 
     # FORMACIÓN
     if data.get("formacion"):
 
         elements.append(
             Paragraph(
-                "<b>FORMACIÓN</b>",
+                "FORMACIÓN",
                 styles["Section"]
             )
         )
 
-        for x in data["formacion"][:5]:
+        for item in data["formacion"][:5]:
 
-            limpio = x.lstrip("-• ").strip()
+            limpio = item.lstrip("-• ").strip()
 
             elements.append(
                 Paragraph(
                     f"• {limpio}",
-                    styles["BodySmall"]
+                    styles["Body"]
                 )
             )
-
-        elements.append(
-            Spacer(1, 8)
-        )
 
     # HABILIDADES
     if data.get("competencias"):
 
         elements.append(
             Paragraph(
-                "<b>HABILIDADES TÉCNICAS</b>",
+                "HABILIDADES TÉCNICAS",
                 styles["Section"]
             )
         )
@@ -548,12 +555,8 @@ def generar_pdf(nombre, cargo, contacto, data):
         elements.append(
             Paragraph(
                 habilidades,
-                styles["BodySmall"]
+                styles["Body"]
             )
-        )
-
-        elements.append(
-            Spacer(1, 8)
         )
 
     # CERTIFICACIONES
@@ -561,32 +564,28 @@ def generar_pdf(nombre, cargo, contacto, data):
 
         elements.append(
             Paragraph(
-                "<b>CERTIFICACIONES</b>",
+                "CERTIFICACIONES",
                 styles["Section"]
             )
         )
 
-        for x in data["certificaciones"][:5]:
+        for item in data["certificaciones"][:5]:
 
-            limpio = x.lstrip("-• ").strip()
+            limpio = item.lstrip("-• ").strip()
 
             elements.append(
                 Paragraph(
                     f"• {limpio}",
-                    styles["BodySmall"]
+                    styles["Body"]
                 )
             )
 
-        elements.append(
-            Spacer(1, 8)
-        )
-
-    # EXTRA
+    # DATOS EXTRA
     if data.get("info_relevante"):
 
         elements.append(
             Paragraph(
-                "<b>DATOS ADICIONALES</b>",
+                "DATOS ADICIONALES",
                 styles["Section"]
             )
         )
@@ -594,14 +593,14 @@ def generar_pdf(nombre, cargo, contacto, data):
         elements.append(
             Paragraph(
                 data["info_relevante"],
-                styles["BodySmall"]
+                styles["Body"]
             )
         )
 
     doc.build(
         elements,
-        onFirstPage=footer,
-        onLaterPages=footer
+        onFirstPage=draw_header_footer,
+        onLaterPages=draw_header_footer
     )
 
     buffer.seek(0)
@@ -680,7 +679,7 @@ def crear_cv():
         )
 
         # =========================
-        # GUARDAR EN SUPABASE
+        # GUARDAR SUPABASE
         # =========================
 
         try:
@@ -707,7 +706,7 @@ def crear_cv():
             print("ERROR SUPABASE:", e)
 
         # =========================
-        # EXTRAER TEXTO
+        # PROCESAR CV
         # =========================
 
         texto = extraer_texto(file)
@@ -746,3 +745,4 @@ def crear_cv():
 
 if __name__ == "__main__":
     app.run(debug=True)
+````
