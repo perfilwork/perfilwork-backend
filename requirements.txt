@@ -6,4 +6,3 @@ reportlab
 python-docx
 PyPDF2
 supabase
-weasyprint
