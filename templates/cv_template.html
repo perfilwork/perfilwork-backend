@@ -1,0 +1,231 @@
+```html id="fd2f9j"
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+
+<style>
+
+body{
+font-family: Arial, sans-serif;
+color:#1e293b;
+padding:40px;
+font-size:14px;
+line-height:1.6;
+}
+
+.header{
+border-bottom:2px solid #e2e8f0;
+padding-bottom:18px;
+margin-bottom:28px;
+}
+
+.logo{
+font-size:14px;
+font-weight:bold;
+color:#2563eb;
+margin-bottom:12px;
+}
+
+.nombre{
+font-size:34px;
+font-weight:800;
+color:#0f172a;
+margin-bottom:4px;
+}
+
+.cargo{
+font-size:18px;
+font-weight:700;
+color:#2563eb;
+margin-bottom:10px;
+}
+
+.contacto{
+font-size:13px;
+color:#64748b;
+}
+
+.section{
+margin-top:28px;
+}
+
+.section-title{
+font-size:15px;
+font-weight:800;
+color:#0f172a;
+margin-bottom:10px;
+text-transform:uppercase;
+border-left:4px solid #2563eb;
+padding-left:10px;
+}
+
+.card{
+background:#f8fafc;
+padding:16px;
+border-radius:10px;
+}
+
+.exp{
+margin-bottom:14px;
+padding-bottom:14px;
+border-bottom:1px solid #e2e8f0;
+}
+
+ul{
+padding-left:20px;
+}
+
+.skills{
+display:flex;
+flex-wrap:wrap;
+gap:8px;
+}
+
+.skill{
+background:#dbeafe;
+color:#1d4ed8;
+padding:6px 10px;
+border-radius:999px;
+font-size:12px;
+font-weight:700;
+display:inline-block;
+margin:4px;
+}
+
+.footer{
+margin-top:40px;
+font-size:11px;
+color:#94a3b8;
+text-align:center;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="header">
+
+<div class="logo">
+Perfil.Work
+</div>
+
+<div class="nombre">
+{{ nombre }}
+</div>
+
+<div class="cargo">
+{{ cargo }}
+</div>
+
+<div class="contacto">
+{{ contacto }}
+</div>
+
+</div>
+
+<div class="section">
+
+<div class="section-title">
+Resumen Técnico
+</div>
+
+<div class="card">
+{{ perfil }}
+</div>
+
+</div>
+
+<div class="section">
+
+<div class="section-title">
+Experiencia Laboral
+</div>
+
+{% for item in experiencia %}
+
+<div class="exp">
+• {{ item }}
+</div>
+
+{% endfor %}
+
+</div>
+
+<div class="section">
+
+<div class="section-title">
+Formación
+</div>
+
+<ul>
+
+{% for item in formacion %}
+
+<li>{{ item }}</li>
+
+{% endfor %}
+
+</ul>
+
+</div>
+
+<div class="section">
+
+<div class="section-title">
+Habilidades Técnicas
+</div>
+
+<div class="skills">
+
+{% for item in competencias %}
+
+<span class="skill">
+{{ item }}
+</span>
+
+{% endfor %}
+
+</div>
+
+</div>
+
+<div class="section">
+
+<div class="section-title">
+Certificaciones
+</div>
+
+<ul>
+
+{% for item in certificaciones %}
+
+<li>{{ item }}</li>
+
+{% endfor %}
+
+</ul>
+
+</div>
+
+<div class="section">
+
+<div class="section-title">
+Datos Adicionales
+</div>
+
+<div class="card">
+{{ info_relevante }}
+</div>
+
+</div>
+
+<div class="footer">
+Perfil.Work · Talento Técnico y Profesional
+</div>
+
+</body>
+</html>
+```
