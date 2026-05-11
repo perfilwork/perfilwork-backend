@@ -432,6 +432,8 @@ def draw_header_footer(canvas, doc):
 
 ```python id="gkr31m"
 def generar_pdf(nombre, cargo, contacto, data):
+    
+    print("USANDO NUEVO GENERADOR HTML")
 
     html_renderizado = render_template(
         "cv_template.html",
