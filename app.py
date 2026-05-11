@@ -3,8 +3,9 @@ import os
 import json
 import re
 from io import BytesIO
+from weasyprint import HTML
 
-from flask import Flask, request, Response
+from flask import Flask, request, Response, render_template
 from flask_cors import CORS
 from openai import OpenAI
 from supabase import create_client
@@ -429,183 +430,50 @@ def draw_header_footer(canvas, doc):
 # PDF
 # =========================
 
+```python id="gkr31m"
 def generar_pdf(nombre, cargo, contacto, data):
 
-    buffer = BytesIO()
+    html_renderizado = render_template(
+        "cv_template.html",
 
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        leftMargin=40,
-        rightMargin=40,
-        topMargin=72,
-        bottomMargin=40
-    )
+        nombre=nombre,
+        cargo=cargo,
+        contacto=contacto,
 
-    elements = []
+        perfil=data.get("perfil", ""),
 
-    # HEADER TEXTO
-    elements.append(
-        Paragraph(
-            nombre,
-            styles["Name"]
+        experiencia=data.get(
+            "experiencia",
+            []
+        ),
+
+        formacion=data.get(
+            "formacion",
+            []
+        ),
+
+        competencias=data.get(
+            "competencias",
+            []
+        ),
+
+        certificaciones=data.get(
+            "certificaciones",
+            []
+        ),
+
+        info_relevante=data.get(
+            "info_relevante",
+            ""
         )
     )
 
-    elements.append(
-        Paragraph(
-            cargo,
-            styles["Cargo"]
-        )
-    )
+    pdf_bytes = HTML(
+        string=html_renderizado
+    ).write_pdf()
 
-    elements.append(
-        Paragraph(
-            contacto,
-            styles["Contact"]
-        )
-    )
-
-    elements.append(
-        HRFlowable(
-            width="100%",
-            thickness=0.6,
-            color=colors.HexColor("#cbd5e1")
-        )
-    )
-
-    elements.append(
-        Spacer(1, 14)
-    )
-
-    # PERFIL
-    if data.get("perfil"):
-
-        elements.append(
-            Paragraph(
-                "RESUMEN TÉCNICO",
-                styles["Section"]
-            )
-        )
-
-        elements.append(
-            Paragraph(
-                data["perfil"],
-                styles["Body"]
-            )
-        )
-
-    # EXPERIENCIA
-    if data.get("experiencia"):
-
-        elements.append(
-            Paragraph(
-                "EXPERIENCIA LABORAL",
-                styles["Section"]
-            )
-        )
-
-        for experiencia in data["experiencia"][:8]:
-
-            limpio = experiencia.lstrip("-• ").strip()
-
-            elements.append(
-                Paragraph(
-                    f"• {limpio}",
-                    styles["Experience"]
-                )
-            )
-
-    # FORMACIÓN
-    if data.get("formacion"):
-
-        elements.append(
-            Paragraph(
-                "FORMACIÓN",
-                styles["Section"]
-            )
-        )
-
-        for item in data["formacion"][:5]:
-
-            limpio = item.lstrip("-• ").strip()
-
-            elements.append(
-                Paragraph(
-                    f"• {limpio}",
-                    styles["Body"]
-                )
-            )
-
-    # HABILIDADES
-    if data.get("competencias"):
-
-        elements.append(
-            Paragraph(
-                "HABILIDADES TÉCNICAS",
-                styles["Section"]
-            )
-        )
-
-        habilidades = ", ".join([
-            x.lstrip("-• ").strip()
-            for x in data["competencias"][:12]
-        ])
-
-        elements.append(
-            Paragraph(
-                habilidades,
-                styles["Body"]
-            )
-        )
-
-    # CERTIFICACIONES
-    if data.get("certificaciones"):
-
-        elements.append(
-            Paragraph(
-                "CERTIFICACIONES",
-                styles["Section"]
-            )
-        )
-
-        for item in data["certificaciones"][:5]:
-
-            limpio = item.lstrip("-• ").strip()
-
-            elements.append(
-                Paragraph(
-                    f"• {limpio}",
-                    styles["Body"]
-                )
-            )
-
-    # DATOS EXTRA
-    if data.get("info_relevante"):
-
-        elements.append(
-            Paragraph(
-                "DATOS ADICIONALES",
-                styles["Section"]
-            )
-        )
-
-        elements.append(
-            Paragraph(
-                data["info_relevante"],
-                styles["Body"]
-            )
-        )
-
-    doc.build(
-        elements,
-        onFirstPage=draw_header_footer,
-        onLaterPages=draw_header_footer
-    )
-
-    buffer.seek(0)
-
-    return buffer
+    return BytesIO(pdf_bytes)
+```
 
 
 # =========================
