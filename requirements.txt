@@ -1,8 +1,7 @@
 flask
-gunicorn
 flask-cors
-openai>=1.0.0
-reportlab
+openai
+supabase
+weasyprint
 python-docx
 PyPDF2
-supabase
