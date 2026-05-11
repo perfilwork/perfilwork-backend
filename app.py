@@ -13,7 +13,9 @@ from reportlab.platypus import (
     SimpleDocTemplate,
     Paragraph,
     Spacer,
-    HRFlowable
+    HRFlowable,
+    Table,
+    TableStyle
 )
 
 from reportlab.lib.styles import (
@@ -23,7 +25,6 @@ from reportlab.lib.styles import (
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
-from reportlab.pdfbase.pdfmetrics import stringWidth
 
 import docx
 import PyPDF2
@@ -52,7 +53,7 @@ client = OpenAI(
 
 SUPABASE_URL = "https://kybticlgyamdcthljcov.supabase.co"
 
-SUPABASE_KEY = "TU_SUPABASE_KEY"
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 supabase = create_client(
     SUPABASE_URL,
@@ -70,21 +71,20 @@ styles.add(
     ParagraphStyle(
         name="Body",
         fontName="Helvetica",
-        fontSize=10.5,
+        fontSize=10,
         leading=15,
-        textColor=colors.HexColor("#1e293b"),
-        spaceAfter=6
+        textColor=colors.HexColor("#334155"),
+        spaceAfter=8
     )
 )
 
 styles.add(
     ParagraphStyle(
-        name="Section",
+        name="SectionTitle",
         fontName="Helvetica-Bold",
-        fontSize=12.5,
-        leading=18,
-        textColor=colors.HexColor("#0f172a"),
-        spaceBefore=10,
+        fontSize=11,
+        leading=14,
+        textColor=colors.white,
         spaceAfter=10
     )
 )
@@ -96,7 +96,7 @@ styles.add(
         fontSize=24,
         leading=28,
         textColor=colors.HexColor("#0f172a"),
-        spaceAfter=4
+        spaceAfter=6
     )
 )
 
@@ -115,10 +115,21 @@ styles.add(
     ParagraphStyle(
         name="Contact",
         fontName="Helvetica",
-        fontSize=9.5,
+        fontSize=9,
+        leading=12,
+        textColor=colors.HexColor("#64748b"),
+        spaceAfter=12
+    )
+)
+
+styles.add(
+    ParagraphStyle(
+        name="SidebarText",
+        fontName="Helvetica",
+        fontSize=9,
         leading=13,
-        textColor=colors.HexColor("#475569"),
-        spaceAfter=18
+        textColor=colors.HexColor("#334155"),
+        spaceAfter=7
     )
 )
 
@@ -126,7 +137,7 @@ styles.add(
     ParagraphStyle(
         name="Experience",
         fontName="Helvetica",
-        fontSize=10.5,
+        fontSize=10,
         leading=15,
         textColor=colors.HexColor("#1e293b"),
         spaceAfter=10
@@ -277,7 +288,8 @@ Debes transformar este CV en una versión:
 - profesional
 - recruiter-friendly
 - compacta
-- legible
+- moderna
+- fácil de leer
 
 NO inventes información.
 
@@ -383,14 +395,13 @@ Información adicional:
 
 
 # =========================
-# HEADER / FOOTER
+# HEADER FOOTER
 # =========================
 
 def draw_header_footer(canvas, doc):
 
     width, height = A4
 
-    # LOGO
     if os.path.exists("logo.png"):
 
         try:
@@ -398,9 +409,9 @@ def draw_header_footer(canvas, doc):
             canvas.drawImage(
                 "logo.png",
                 40,
-                height - 52,
-                width=92,
-                height=30,
+                height - 55,
+                width=90,
+                height=28,
                 preserveAspectRatio=True,
                 mask='auto'
             )
@@ -408,7 +419,6 @@ def draw_header_footer(canvas, doc):
         except Exception as e:
             print("ERROR LOGO:", e)
 
-    # FOOTER
     canvas.setFont("Helvetica", 8)
     canvas.setFillColor(colors.HexColor("#94a3b8"))
 
@@ -426,6 +436,30 @@ def draw_header_footer(canvas, doc):
 
 
 # =========================
+# TITULO SECCION
+# =========================
+
+def titulo_seccion(texto):
+
+    tabla = Table(
+        [[Paragraph(texto, styles["SectionTitle"])]],
+        colWidths=[180]
+    )
+
+    tabla.setStyle(
+        TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#2563eb")),
+            ('LEFTPADDING', (0, 0), (-1, -1), 10),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ])
+    )
+
+    return tabla
+
+
+# =========================
 # PDF
 # =========================
 
@@ -436,15 +470,16 @@ def generar_pdf(nombre, cargo, contacto, data):
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
-        leftMargin=40,
-        rightMargin=40,
-        topMargin=72,
-        bottomMargin=40
+        leftMargin=35,
+        rightMargin=35,
+        topMargin=70,
+        bottomMargin=35
     )
 
     elements = []
 
-    # HEADER TEXTO
+    # HEADER
+
     elements.append(
         Paragraph(
             nombre,
@@ -467,135 +502,194 @@ def generar_pdf(nombre, cargo, contacto, data):
     )
 
     elements.append(
-        HRFlowable(
-            width="100%",
-            thickness=0.6,
-            color=colors.HexColor("#cbd5e1")
-        )
+        Spacer(1, 10)
+    )
+
+    # RESUMEN
+
+    elements.append(
+        titulo_seccion("RESUMEN TÉCNICO")
     )
 
     elements.append(
-        Spacer(1, 14)
+        Spacer(1, 10)
     )
 
-    # PERFIL
-    if data.get("perfil"):
+    resumen_box = Table(
+        [[Paragraph(data["perfil"], styles["Body"])]],
+        colWidths=[520]
+    )
 
-        elements.append(
-            Paragraph(
-                "RESUMEN TÉCNICO",
-                styles["Section"]
-            )
-        )
+    resumen_box.setStyle(
+        TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
+            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor("#e2e8f0")),
+            ('LEFTPADDING', (0, 0), (-1, -1), 14),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 14),
+            ('TOPPADDING', (0, 0), (-1, -1), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+        ])
+    )
 
-        elements.append(
-            Paragraph(
-                data["perfil"],
-                styles["Body"]
-            )
-        )
+    elements.append(resumen_box)
+
+    elements.append(
+        Spacer(1, 18)
+    )
 
     # EXPERIENCIA
-    if data.get("experiencia"):
 
-        elements.append(
-            Paragraph(
-                "EXPERIENCIA LABORAL",
-                styles["Section"]
-            )
+    elements.append(
+        titulo_seccion("EXPERIENCIA LABORAL")
+    )
+
+    elements.append(
+        Spacer(1, 10)
+    )
+
+    for experiencia in data["experiencia"][:8]:
+
+        limpio = experiencia.lstrip("-• ").strip()
+
+        experiencia_box = Table(
+            [[Paragraph(limpio, styles["Experience"])]],
+            colWidths=[520]
         )
 
-        for experiencia in data["experiencia"][:8]:
+        experiencia_box.setStyle(
+            TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+                ('BOX', (0, 0), (-1, -1), 1, colors.HexColor("#e2e8f0")),
+                ('LEFTPADDING', (0, 0), (-1, -1), 12),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+                ('TOPPADDING', (0, 0), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ])
+        )
 
-            limpio = experiencia.lstrip("-• ").strip()
+        elements.append(experiencia_box)
 
-            elements.append(
-                Paragraph(
-                    f"• {limpio}",
-                    styles["Experience"]
-                )
-            )
+        elements.append(
+            Spacer(1, 10)
+        )
+
+    # TABLA LATERAL
+
+    izquierda = []
 
     # FORMACIÓN
-    if data.get("formacion"):
+    izquierda.append(
+        titulo_seccion("FORMACIÓN")
+    )
 
-        elements.append(
+    izquierda.append(
+        Spacer(1, 8)
+    )
+
+    for item in data["formacion"][:5]:
+
+        izquierda.append(
             Paragraph(
-                "FORMACIÓN",
-                styles["Section"]
+                f"• {item}",
+                styles["SidebarText"]
             )
         )
 
-        for item in data["formacion"][:5]:
-
-            limpio = item.lstrip("-• ").strip()
-
-            elements.append(
-                Paragraph(
-                    f"• {limpio}",
-                    styles["Body"]
-                )
-            )
+    izquierda.append(
+        Spacer(1, 12)
+    )
 
     # HABILIDADES
-    if data.get("competencias"):
+    izquierda.append(
+        titulo_seccion("HABILIDADES")
+    )
 
-        elements.append(
-            Paragraph(
-                "HABILIDADES TÉCNICAS",
-                styles["Section"]
-            )
+    izquierda.append(
+        Spacer(1, 8)
+    )
+
+    for item in data["competencias"][:10]:
+
+        skill = Table(
+            [[Paragraph(item, styles["SidebarText"])]],
+            colWidths=[170]
         )
 
-        habilidades = ", ".join([
-            x.lstrip("-• ").strip()
-            for x in data["competencias"][:12]
-        ])
-
-        elements.append(
-            Paragraph(
-                habilidades,
-                styles["Body"]
-            )
+        skill.setStyle(
+            TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#dbeafe")),
+                ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor("#1d4ed8")),
+                ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ])
         )
+
+        izquierda.append(skill)
+
+        izquierda.append(
+            Spacer(1, 5)
+        )
+
+    izquierda.append(
+        Spacer(1, 12)
+    )
 
     # CERTIFICACIONES
-    if data.get("certificaciones"):
+    izquierda.append(
+        titulo_seccion("CERTIFICACIONES")
+    )
 
-        elements.append(
+    izquierda.append(
+        Spacer(1, 8)
+    )
+
+    for item in data["certificaciones"][:5]:
+
+        izquierda.append(
             Paragraph(
-                "CERTIFICACIONES",
-                styles["Section"]
+                f"• {item}",
+                styles["SidebarText"]
             )
         )
 
-        for item in data["certificaciones"][:5]:
-
-            limpio = item.lstrip("-• ").strip()
-
-            elements.append(
-                Paragraph(
-                    f"• {limpio}",
-                    styles["Body"]
-                )
-            )
+    for item in izquierda:
+        elements.append(item)
 
     # DATOS EXTRA
-    if data.get("info_relevante"):
+
+    if data["info_relevante"]:
 
         elements.append(
-            Paragraph(
-                "DATOS ADICIONALES",
-                styles["Section"]
-            )
+            Spacer(1, 16)
         )
 
         elements.append(
-            Paragraph(
-                data["info_relevante"],
-                styles["Body"]
-            )
+            titulo_seccion("DATOS ADICIONALES")
         )
+
+        elements.append(
+            Spacer(1, 10)
+        )
+
+        extra_box = Table(
+            [[Paragraph(data["info_relevante"], styles["Body"])]],
+            colWidths=[520]
+        )
+
+        extra_box.setStyle(
+            TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
+                ('BOX', (0, 0), (-1, -1), 1, colors.HexColor("#e2e8f0")),
+                ('LEFTPADDING', (0, 0), (-1, -1), 14),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 14),
+                ('TOPPADDING', (0, 0), (-1, -1), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ])
+        )
+
+        elements.append(extra_box)
 
     doc.build(
         elements,
@@ -678,10 +772,6 @@ def crear_cv():
             f"{telefono}"
         )
 
-        # =========================
-        # GUARDAR SUPABASE
-        # =========================
-
         try:
 
             supabase.table(
@@ -704,10 +794,6 @@ def crear_cv():
 
         except Exception as e:
             print("ERROR SUPABASE:", e)
-
-        # =========================
-        # PROCESAR CV
-        # =========================
 
         texto = extraer_texto(file)
 
