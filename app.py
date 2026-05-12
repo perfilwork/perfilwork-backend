@@ -236,15 +236,15 @@ body {{
 
 /* HEADER */
 .header {{
-    border-bottom: 3px solid #1d4ed8;
-    padding-bottom: 12px;
-    margin-bottom: 16px;
+    padding-bottom: 14px;
+    margin-bottom: 18px;
+    border-bottom: 4px solid #e05a4e;
 }}
 
 .logo-row {{
     display: block;
     text-align: right;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
 }}
 
 .logo-img {{
@@ -258,14 +258,14 @@ body {{
     font-weight: bold;
     color: #0f172a;
     line-height: 1.2;
-    margin-bottom: 3px;
+    margin-bottom: 4px;
 }}
 
 .cargo-titulo {{
-    font-size: 13pt;
-    color: #1d4ed8;
+    font-size: 12pt;
+    color: #114f96;
     font-weight: bold;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 }}
 
 .contacto {{
@@ -282,18 +282,18 @@ body {{
 
 /* SECCIONES */
 .section {{
-    margin-bottom: 18px;
+    margin-bottom: 16px;
 }}
 
 .section-title {{
-    font-size: 11pt;
+    font-size: 10pt;
     font-weight: bold;
-    color: #1d4ed8;
+    color: #114f96;
     text-transform: uppercase;
     letter-spacing: 1px;
-    border-bottom: 0.5px solid #e2e8f0;
-    padding-bottom: 4px;
+    padding-bottom: 3px;
     margin-bottom: 10px;
+    border-bottom: 1.5px solid #2ec4a5;
 }}
 
 /* PERFIL */
@@ -305,31 +305,31 @@ body {{
 
 /* EXPERIENCIA */
 .exp-card {{
-    margin-bottom: 14px;
-    padding-bottom: 10px;
-    border-bottom: 0.5px solid #f1f5f9;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 0.5px solid #e2e8f0;
 }}
 
 .exp-header {{
     display: block;
-    margin-bottom: 1px;
+    margin-bottom: 2px;
 }}
 
 .exp-empresa {{
-    font-size: 12pt;
+    font-size: 11.5pt;
     font-weight: bold;
     color: #0f172a;
 }}
 
 .exp-periodo {{
-    font-size: 10pt;
+    font-size: 9.5pt;
     color: #94a3b8;
     float: right;
 }}
 
 .exp-cargo {{
-    font-size: 11pt;
-    color: #1d4ed8;
+    font-size: 10.5pt;
+    color: #114f96;
     font-weight: bold;
     margin-bottom: 5px;
 }}
@@ -373,7 +373,7 @@ body {{
 
 .lista-pills li:before {{
     content: "> ";
-    color: #1d4ed8;
+    color: #e05a4e;
 }}
 
 /* DISPONIBILIDAD */
