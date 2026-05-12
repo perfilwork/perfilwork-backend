@@ -7,41 +7,21 @@ from flask import Flask, request, Response
 from flask_cors import CORS
 from openai import OpenAI
 from supabase import create_client
-from weasyprint import HTML as WeasyprintHTML
+from xhtml2pdf import pisa
 
 import docx
 import PyPDF2
 
 
-# =========================
-# APP
-# =========================
-
 app = Flask(__name__)
 CORS(app)
 
-
-# =========================
-# OPENAI
-# =========================
-
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY")
-)
-
-
-# =========================
-# SUPABASE
-# =========================
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 SUPABASE_URL = "https://kybticlgyamdcthljcov.supabase.co"
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-
-# =========================
-# EXTRAER TEXTO
-# =========================
 
 def extraer_texto(file):
     if not file:
@@ -58,22 +38,14 @@ def extraer_texto(file):
                 texto += page.extract_text() or ""
             return texto
     except Exception as e:
-        print("ERROR EXTRACCIÓN:", e)
+        print("ERROR EXTRACCION:", e)
     return ""
 
-
-# =========================
-# PREPROCESAR
-# =========================
 
 def preprocesar_cv(texto):
     lineas = [re.sub(r"\s+", " ", l.strip()) for l in texto.split("\n") if l.strip()]
     return "\n".join(lineas)[:12000]
 
-
-# =========================
-# EXTRAER JSON
-# =========================
 
 def extraer_json(texto):
     try:
@@ -81,92 +53,69 @@ def extraer_json(texto):
         if match:
             return json.loads(match.group())
     except Exception as e:
-        print("ERROR EXTRAER JSON:", e)
+        print("ERROR JSON:", e)
     return None
 
 
-# =========================
-# IA — prompt mejorado para estructura
-# =========================
-
 def mejorar_cv(texto_cv, info_extra):
-
     prompt = f"""
-Eres especialista en reclutamiento técnico industrial en Chile y Latinoamérica.
+Eres especialista en reclutamiento tecnico industrial en Chile.
+Transforma este CV en version profesional recruiter-friendly para mineria, construccion, mantenimiento, electricidad.
 
-Transforma este CV en una versión profesional, clara y recruiter-friendly para sectores como minería, construcción industrial, mantenimiento, electricidad, mecánica y operaciones.
+REGLAS:
+- NO inventes informacion que no este en el CV.
+- Experiencias con empresa, cargo, periodo y funciones SEPARADOS.
+- Funciones: bullets cortos y concretos.
 
-REGLAS IMPORTANTES:
-- NO inventes información que no esté en el CV original o en la información adicional.
-- Sé conciso y directo. Evita frases vacías o genéricas.
-- Las experiencias laborales deben estar estructuradas con empresa, cargo, período y funciones SEPARADOS.
-- Las funciones deben ser bullets cortos, concretos y orientados a logros cuando sea posible.
-
-Devuelve SOLO JSON válido con esta estructura exacta:
+Devuelve SOLO JSON valido:
 
 {{
-  "perfil": "Párrafo corto de 2-3 líneas resumiendo el perfil técnico del candidato.",
+  "perfil": "2-3 lineas resumiendo perfil tecnico.",
   "experiencia": [
     {{
-      "empresa": "Nombre de la empresa",
-      "cargo": "Cargo desempeñado",
-      "periodo": "Año inicio – Año término (ej: 2018 – 2023)",
-      "funciones": [
-        "Función o logro concreto 1",
-        "Función o logro concreto 2",
-        "Función o logro concreto 3"
-      ]
+      "empresa": "Nombre empresa",
+      "cargo": "Cargo",
+      "periodo": "Año inicio - Año termino",
+      "funciones": ["Funcion 1", "Funcion 2", "Funcion 3"]
     }}
   ],
   "formacion": [
     {{
-      "titulo": "Nombre del título o carrera",
-      "institucion": "Nombre de la institución",
-      "anio": "Año de egreso o período"
+      "titulo": "Titulo o carrera",
+      "institucion": "Institucion",
+      "anio": "Año"
     }}
   ],
-  "competencias": ["Habilidad técnica 1", "Habilidad técnica 2"],
-  "certificaciones": ["Certificación 1", "Certificación 2"],
-  "info_relevante": "Información adicional relevante: disponibilidad, licencias, turno, etc."
+  "competencias": ["Habilidad 1", "Habilidad 2"],
+  "certificaciones": ["Certificacion 1"],
+  "info_relevante": "Disponibilidad, licencias, etc."
 }}
 
-CV del candidato:
+CV:
 {texto_cv}
 
-Información adicional entregada por el candidato:
+Info adicional:
 {info_extra}
 """
-
     try:
         respuesta = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Responde SOLO con JSON válido. Sin texto adicional, sin markdown, sin explicaciones."},
+                {"role": "system", "content": "Responde SOLO JSON valido. Sin markdown ni explicaciones."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.2,
             max_tokens=1800
         )
-
         contenido = respuesta.choices[0].message.content.strip()
         contenido = contenido.replace("```json", "").replace("```", "")
         data = extraer_json(contenido)
-
         if not data:
-            raise Exception("JSON inválido")
-
+            raise Exception("JSON invalido")
     except Exception as e:
-        print("ERROR OPENAI / JSON:", e)
-        data = {
-            "perfil": info_extra,
-            "experiencia": [],
-            "formacion": [],
-            "competencias": [],
-            "certificaciones": [],
-            "info_relevante": info_extra
-        }
+        print("ERROR OPENAI:", e)
+        data = {"perfil": info_extra, "experiencia": [], "formacion": [], "competencias": [], "certificaciones": [], "info_relevante": info_extra}
 
-    # Normalizar experiencia
     experiencias_ok = []
     for exp in data.get("experiencia", []):
         if isinstance(exp, dict):
@@ -177,39 +126,23 @@ Información adicional entregada por el candidato:
                 "funciones": [str(f) for f in exp.get("funciones", [])] if isinstance(exp.get("funciones"), list) else []
             })
         elif isinstance(exp, str):
-            experiencias_ok.append({
-                "empresa": exp,
-                "cargo": "",
-                "periodo": "",
-                "funciones": []
-            })
+            experiencias_ok.append({"empresa": exp, "cargo": "", "periodo": "", "funciones": []})
     data["experiencia"] = experiencias_ok
 
-    # Normalizar formación
     formacion_ok = []
     for item in data.get("formacion", []):
         if isinstance(item, dict):
-            formacion_ok.append({
-                "titulo": str(item.get("titulo", "")),
-                "institucion": str(item.get("institucion", "")),
-                "anio": str(item.get("anio", ""))
-            })
+            formacion_ok.append({"titulo": str(item.get("titulo", "")), "institucion": str(item.get("institucion", "")), "anio": str(item.get("anio", ""))})
         elif isinstance(item, str):
             formacion_ok.append({"titulo": item, "institucion": "", "anio": ""})
     data["formacion"] = formacion_ok
 
-    # Normalizar listas simples
     data["competencias"] = [str(c) for c in data.get("competencias", [])] if isinstance(data.get("competencias"), list) else []
     data["certificaciones"] = [str(c) for c in data.get("certificaciones", [])] if isinstance(data.get("certificaciones"), list) else []
     data["perfil"] = str(data.get("perfil", ""))
     data["info_relevante"] = str(data.get("info_relevante", ""))
-
     return data
 
-
-# =========================
-# INICIALES PARA AVATAR
-# =========================
 
 def obtener_iniciales(nombre):
     partes = nombre.strip().split()
@@ -220,663 +153,190 @@ def obtener_iniciales(nombre):
     return "PW"
 
 
-# =========================
-# GENERAR HTML DEL CV
-# =========================
-
 def generar_html(nombre, cargo, email, telefono, region, sueldo, nivel, area, data):
-
     iniciales = obtener_iniciales(nombre)
 
-    # Sidebar: experiencia en badges
-    badges_html = ""
+    badges = []
     if sueldo:
-        badges_html += f'<span class="badge">$ {sueldo}</span>'
+        badges.append(f'<span class="badge">$ {sueldo}</span>')
     if nivel:
-        badges_html += f'<span class="badge">{nivel}</span>'
+        badges.append(f'<span class="badge">{nivel}</span>')
     if area:
-        badges_html += f'<span class="badge">{area}</span>'
+        badges.append(f'<span class="badge">{area}</span>')
+    badges_html = "".join(badges)
 
-    # Bloques de experiencia
     exp_html = ""
-    for exp in data["experiencia"][:6]:
-        funciones_html = "".join([f"<li>{f}</li>" for f in exp["funciones"][:4]])
+    for exp in data["experiencia"][:7]:
+        funciones_items = "".join([f"<li>{f}</li>" for f in exp["funciones"][:4]])
+        funciones_block = f'<ul class="exp-bullets">{funciones_items}</ul>' if funciones_items else ""
         exp_html += f"""
         <div class="exp-card">
-            <div class="exp-header">
-                <div>
-                    <div class="exp-empresa">{exp['empresa']}</div>
-                    <div class="exp-cargo">{exp['cargo']}</div>
-                </div>
-                <div class="exp-periodo">{exp['periodo']}</div>
-            </div>
-            {'<ul class="exp-bullets">' + funciones_html + '</ul>' if funciones_html else ''}
-        </div>
-        """
+          <table class="exp-table"><tr>
+            <td class="exp-left">
+              <div class="exp-empresa">{exp['empresa']}</div>
+              <div class="exp-cargo">{exp['cargo']}</div>
+            </td>
+            <td class="exp-right"><div class="exp-periodo">{exp['periodo']}</div></td>
+          </tr></table>
+          {funciones_block}
+        </div>"""
 
-    # Formación sidebar
     formacion_html = ""
     for f in data["formacion"][:4]:
-        formacion_html += f"""
-        <div class="s-edu">
-            <div class="s-edu-titulo">{f['titulo']}</div>
-            <div class="s-edu-inst">{f['institucion']} {('· ' + f['anio']) if f['anio'] else ''}</div>
-        </div>
-        """
+        anio = f"· {f['anio']}" if f["anio"] else ""
+        formacion_html += f'<div class="s-edu"><div class="s-edu-titulo">{f["titulo"]}</div><div class="s-edu-inst">{f["institucion"]} {anio}</div></div>'
 
-    # Skills sidebar
     skills_html = "".join([f'<span class="skill-pill">{c}</span>' for c in data["competencias"][:10]])
+    certs_html = "".join([f'<div class="s-cert"><span class="cert-dot">&#9679;</span><span class="cert-txt">{c}</span></div>' for c in data["certificaciones"][:5]])
 
-    # Certificaciones sidebar
-    certs_html = "".join([f'<div class="s-cert"><div class="cert-dot"></div><span>{c}</span></div>' for c in data["certificaciones"][:5]])
+    contacto_html = ""
+    if email:
+        contacto_html += f'<div class="contact-row"><span class="contact-icon">&#9993;</span> <span class="contact-text">{email}</span></div>'
+    if telefono:
+        contacto_html += f'<div class="contact-row"><span class="contact-icon">&#9742;</span> <span class="contact-text">{telefono}</span></div>'
+    if region:
+        contacto_html += f'<div class="contact-row"><span class="contact-icon">&#9679;</span> <span class="contact-text">{region}</span></div>'
 
-    # Info relevante
-    info_html = ""
-    if data["info_relevante"]:
-        info_html = f"""
-        <div class="section-label">Información adicional</div>
-        <div class="info-box">{data['info_relevante']}</div>
-        """
+    info_html = f'<div class="section-label">Informacion adicional</div><div class="info-box">{data["info_relevante"]}</div>' if data["info_relevante"] else ""
+    skills_section = f'<div class="s-divider"></div><div class="s-label">Habilidades tecnicas</div><div class="skills-wrap">{skills_html}</div>' if skills_html else ""
+    formacion_section = f'<div class="s-divider"></div><div class="s-label">Formacion</div>{formacion_html}' if formacion_html else ""
+    certs_section = f'<div class="s-divider"></div><div class="s-label">Certificaciones</div>{certs_html}' if certs_html else ""
+    exp_section = f'<div class="section-label">Experiencia laboral</div>{exp_html}' if exp_html else ""
 
-    html = f"""
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
+    return f"""<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8">
 <style>
-  @page {{
-    size: A4;
-    margin: 0;
-  }}
-
-  * {{
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }}
-
-  body {{
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    font-size: 10px;
-    color: #334155;
-    background: #fff;
-  }}
-
-  .page {{
-    width: 210mm;
-    min-height: 297mm;
-    display: flex;
-    flex-direction: row;
-  }}
-
-  /* ===== SIDEBAR ===== */
-  .sidebar {{
-    width: 68mm;
-    min-height: 297mm;
-    background: #0f2137;
-    padding: 20px 15px;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }}
-
-  .logo-area {{
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding-bottom: 14px;
-    border-bottom: 0.5px solid #1e3a5f;
-    margin-bottom: 14px;
-  }}
-
-  .logo-row {{
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    margin-bottom: 4px;
-  }}
-
-  .logo-circles {{
-    position: relative;
-    width: 26px;
-    height: 26px;
-    flex-shrink: 0;
-  }}
-
-  .lc1 {{
-    position: absolute;
-    width: 19px;
-    height: 19px;
-    border-radius: 50%;
-    background: #e05a4e;
-    top: 0;
-    left: 0;
-  }}
-
-  .lc2 {{
-    position: absolute;
-    width: 15px;
-    height: 15px;
-    border-radius: 50%;
-    background: #4a90d9;
-    top: 5px;
-    left: 7px;
-    opacity: 0.9;
-  }}
-
-  .lc3 {{
-    position: absolute;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: #2ec4a5;
-    top: 10px;
-    left: 3px;
-    opacity: 0.92;
-  }}
-
-  .logo-text {{
-    font-size: 14px;
-    color: #e2e8f0;
-    letter-spacing: -0.2px;
-  }}
-
-  .logo-text b {{
-    color: #f1f5f9;
-    font-weight: 700;
-  }}
-
-  .logo-text span {{
-    color: #94a3b8;
-    font-weight: 300;
-  }}
-
-  .logo-tagline {{
-    font-size: 7px;
-    color: #475569;
-    letter-spacing: 0.8px;
-    text-align: center;
-  }}
-
-  .avatar {{
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    background: #1d4ed8;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    font-weight: 700;
-    color: #fff;
-    margin: 0 auto 10px;
-    letter-spacing: 1px;
-  }}
-
-  .s-nombre {{
-    font-size: 11.5px;
-    font-weight: 700;
-    color: #f1f5f9;
-    text-align: center;
-    margin-bottom: 3px;
-    line-height: 1.3;
-  }}
-
-  .s-cargo {{
-    font-size: 8.5px;
-    color: #60a5fa;
-    text-align: center;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    margin-bottom: 14px;
-    line-height: 1.3;
-  }}
-
-  .s-divider {{
-    height: 0.5px;
-    background: #1e3a5f;
-    margin: 10px 0;
-  }}
-
-  .s-label {{
-    font-size: 7.5px;
-    color: #60a5fa;
-    text-transform: uppercase;
-    letter-spacing: 1.2px;
-    font-weight: 700;
-    margin-bottom: 7px;
-  }}
-
-  .contact-row {{
-    display: flex;
-    align-items: flex-start;
-    gap: 6px;
-    margin-bottom: 5px;
-  }}
-
-  .contact-icon {{
-    color: #3b82f6;
-    font-size: 9px;
-    margin-top: 1px;
-    flex-shrink: 0;
-  }}
-
-  .contact-text {{
-    font-size: 8.5px;
-    color: #94a3b8;
-    line-height: 1.4;
-    word-break: break-all;
-  }}
-
-  .skills-wrap {{
-    margin-bottom: 2px;
-  }}
-
-  .skill-pill {{
-    display: inline-block;
-    background: #1e3a5f;
-    color: #93c5fd;
-    font-size: 7.5px;
-    padding: 2px 7px;
-    border-radius: 20px;
-    margin: 2px 2px 0 0;
-    line-height: 1.5;
-  }}
-
-  .s-edu {{
-    margin-bottom: 7px;
-  }}
-
-  .s-edu-titulo {{
-    font-size: 8.5px;
-    color: #cbd5e1;
-    font-weight: 600;
-    line-height: 1.35;
-  }}
-
-  .s-edu-inst {{
-    font-size: 7.5px;
-    color: #64748b;
-    line-height: 1.35;
-  }}
-
-  .s-cert {{
-    display: flex;
-    align-items: flex-start;
-    gap: 5px;
-    margin-bottom: 5px;
-  }}
-
-  .cert-dot {{
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: #1d4ed8;
-    margin-top: 3px;
-    flex-shrink: 0;
-  }}
-
-  .s-cert span {{
-    font-size: 8px;
-    color: #94a3b8;
-    line-height: 1.45;
-  }}
-
-  /* ===== MAIN ===== */
-  .main {{
-    flex: 1;
-    padding: 22px 20px 0;
-    display: flex;
-    flex-direction: column;
-  }}
-
-  .m-header {{
-    padding-bottom: 12px;
-    border-bottom: 2px solid #1d4ed8;
-    margin-bottom: 14px;
-  }}
-
-  .m-nombre {{
-    font-size: 20px;
-    font-weight: 700;
-    color: #0f172a;
-    letter-spacing: -0.3px;
-    margin-bottom: 2px;
-    line-height: 1.2;
-  }}
-
-  .m-cargo {{
-    font-size: 9.5px;
-    font-weight: 700;
-    color: #1d4ed8;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 7px;
-  }}
-
-  .m-perfil {{
-    font-size: 9px;
-    color: #475569;
-    line-height: 1.6;
-    margin-bottom: 8px;
-  }}
-
-  .badges {{
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-  }}
-
-  .badge {{
-    background: #eff6ff;
-    color: #1d4ed8;
-    font-size: 7.5px;
-    font-weight: 600;
-    padding: 3px 8px;
-    border-radius: 20px;
-    border: 0.5px solid #bfdbfe;
-  }}
-
-  .section-label {{
-    font-size: 7.5px;
-    font-weight: 700;
-    color: #1d4ed8;
-    text-transform: uppercase;
-    letter-spacing: 1.2px;
-    margin-bottom: 8px;
-    margin-top: 14px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }}
-
-  .section-label::after {{
-    content: '';
-    flex: 1;
-    height: 0.5px;
-    background: #e2e8f0;
-    display: block;
-  }}
-
-  .exp-card {{
-    border-left: 2.5px solid #1d4ed8;
-    padding: 8px 10px;
-    margin-bottom: 8px;
-    background: #f8fafc;
-    border-radius: 0 3px 3px 0;
-  }}
-
-  .exp-header {{
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 3px;
-  }}
-
-  .exp-empresa {{
-    font-size: 9.5px;
-    font-weight: 700;
-    color: #0f172a;
-    line-height: 1.3;
-  }}
-
-  .exp-cargo {{
-    font-size: 8.5px;
-    color: #1d4ed8;
-    font-weight: 600;
-    line-height: 1.3;
-  }}
-
-  .exp-periodo {{
-    font-size: 8px;
-    color: #94a3b8;
-    white-space: nowrap;
-    flex-shrink: 0;
-    margin-left: 8px;
-    margin-top: 1px;
-  }}
-
-  .exp-bullets {{
-    padding-left: 0;
-    list-style: none;
-    margin-top: 5px;
-  }}
-
-  .exp-bullets li {{
-    font-size: 8.5px;
-    color: #475569;
-    line-height: 1.5;
-    padding-left: 10px;
-    position: relative;
-    margin-bottom: 2px;
-  }}
-
-  .exp-bullets li::before {{
-    content: '▸';
-    position: absolute;
-    left: 0;
-    color: #3b82f6;
-    font-size: 7px;
-    top: 2px;
-  }}
-
-  .info-box {{
-    background: #f0f7ff;
-    border: 0.5px solid #bfdbfe;
-    border-radius: 3px;
-    padding: 8px 10px;
-    font-size: 8.5px;
-    color: #1e3a5f;
-    line-height: 1.6;
-    margin-bottom: 4px;
-  }}
-
-  /* ===== FOOTER ===== */
-  .footer {{
-    background: #0f2137;
-    margin: 14px -20px 0;
-    padding: 7px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }}
-
-  .footer-logo {{
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }}
-
-  .footer-circles {{
-    position: relative;
-    width: 15px;
-    height: 15px;
-    flex-shrink: 0;
-  }}
-
-  .fc1 {{
-    position: absolute;
-    width: 11px;
-    height: 11px;
-    border-radius: 50%;
-    background: #e05a4e;
-    top: 0;
-    left: 0;
-  }}
-
-  .fc2 {{
-    position: absolute;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #4a90d9;
-    top: 3px;
-    left: 4px;
-    opacity: 0.9;
-  }}
-
-  .fc3 {{
-    position: absolute;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #2ec4a5;
-    top: 5px;
-    left: 2px;
-    opacity: 0.92;
-  }}
-
-  .footer-brand {{
-    font-size: 8px;
-    color: #94a3b8;
-  }}
-
-  .footer-brand b {{
-    color: #e2e8f0;
-    font-weight: 700;
-  }}
-
-  .footer-generated {{
-    font-size: 7.5px;
-    color: #475569;
-    letter-spacing: 0.3px;
-  }}
-</style>
-</head>
-<body>
-<div class="page">
-
-  <!-- SIDEBAR -->
-  <div class="sidebar">
-
+@page {{ size: A4; margin: 0; }}
+* {{ margin: 0; padding: 0; box-sizing: border-box; }}
+body {{ font-family: Helvetica, Arial, sans-serif; font-size: 10px; color: #334155; background: #ffffff; }}
+.layout-table {{ width: 210mm; min-height: 297mm; border-collapse: collapse; }}
+.col-sidebar {{ width: 68mm; background-color: #0f2137; vertical-align: top; padding: 18px 13px; }}
+.col-main {{ vertical-align: top; padding: 20px 17px 0 17px; background-color: #ffffff; }}
+.logo-area {{ text-align: center; padding-bottom: 11px; border-bottom: 1px solid #1e3a5f; margin-bottom: 11px; }}
+.logo-text {{ font-size: 13px; color: #e2e8f0; font-weight: bold; margin-bottom: 2px; }}
+.logo-light {{ color: #94a3b8; font-weight: normal; }}
+.logo-tagline {{ font-size: 6.5px; color: #475569; letter-spacing: 0.5px; }}
+.logo-icons {{ margin-bottom: 4px; }}
+.lc {{ display: inline-block; border-radius: 50%; }}
+.lc1 {{ width: 14px; height: 14px; background-color: #e05a4e; }}
+.lc2 {{ width: 11px; height: 11px; background-color: #4a90d9; margin-left: -4px; vertical-align: bottom; }}
+.lc3 {{ width: 9px; height: 9px; background-color: #2ec4a5; margin-left: -5px; vertical-align: bottom; }}
+.avatar-wrap {{ text-align: center; margin-bottom: 7px; }}
+.avatar-circle {{ display: inline-block; width: 46px; height: 46px; background-color: #1d4ed8; border-radius: 23px; text-align: center; padding-top: 10px; }}
+.avatar-text {{ font-size: 16px; font-weight: bold; color: #ffffff; }}
+.s-nombre {{ font-size: 10.5px; font-weight: bold; color: #f1f5f9; text-align: center; margin-bottom: 2px; line-height: 1.3; }}
+.s-cargo {{ font-size: 7.5px; color: #60a5fa; text-align: center; text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 11px; line-height: 1.3; }}
+.s-divider {{ height: 1px; background-color: #1e3a5f; margin: 8px 0; }}
+.s-label {{ font-size: 7px; color: #60a5fa; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; margin-bottom: 5px; margin-top: 2px; }}
+.contact-row {{ margin-bottom: 4px; line-height: 1.4; }}
+.contact-icon {{ font-size: 7.5px; color: #3b82f6; margin-right: 4px; }}
+.contact-text {{ font-size: 7.5px; color: #94a3b8; }}
+.skills-wrap {{ margin-bottom: 3px; }}
+.skill-pill {{ display: inline-block; background-color: #1e3a5f; color: #93c5fd; font-size: 6.5px; padding: 2px 6px; border-radius: 10px; margin: 2px 2px 0 0; line-height: 1.5; }}
+.s-edu {{ margin-bottom: 5px; }}
+.s-edu-titulo {{ font-size: 7.5px; color: #cbd5e1; font-weight: bold; line-height: 1.3; }}
+.s-edu-inst {{ font-size: 7px; color: #64748b; line-height: 1.3; }}
+.s-cert {{ margin-bottom: 3px; line-height: 1.4; }}
+.cert-dot {{ font-size: 5px; color: #1d4ed8; margin-right: 4px; }}
+.cert-txt {{ font-size: 7px; color: #94a3b8; }}
+.m-header {{ padding-bottom: 10px; border-bottom: 2px solid #1d4ed8; margin-bottom: 12px; }}
+.m-nombre {{ font-size: 18px; font-weight: bold; color: #0f172a; letter-spacing: -0.3px; margin-bottom: 2px; line-height: 1.2; }}
+.m-cargo-label {{ font-size: 8.5px; font-weight: bold; color: #1d4ed8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }}
+.m-perfil {{ font-size: 8px; color: #475569; line-height: 1.6; margin-bottom: 6px; }}
+.badge {{ display: inline-block; background-color: #eff6ff; color: #1d4ed8; font-size: 7px; font-weight: bold; padding: 2px 7px; border-radius: 10px; border: 1px solid #bfdbfe; margin-right: 3px; margin-bottom: 2px; }}
+.section-label {{ font-size: 7.5px; font-weight: bold; color: #1d4ed8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 7px; margin-top: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }}
+.exp-card {{ border-left: 2px solid #1d4ed8; padding: 7px 9px; margin-bottom: 7px; background-color: #f8fafc; }}
+.exp-table {{ width: 100%; border-collapse: collapse; }}
+.exp-left {{ vertical-align: top; }}
+.exp-right {{ vertical-align: top; text-align: right; white-space: nowrap; padding-left: 6px; }}
+.exp-empresa {{ font-size: 9px; font-weight: bold; color: #0f172a; line-height: 1.3; }}
+.exp-cargo {{ font-size: 8px; color: #1d4ed8; font-weight: bold; line-height: 1.3; }}
+.exp-periodo {{ font-size: 7px; color: #94a3b8; }}
+.exp-bullets {{ padding-left: 11px; margin-top: 4px; }}
+.exp-bullets li {{ font-size: 7.5px; color: #475569; line-height: 1.5; margin-bottom: 1px; }}
+.info-box {{ background-color: #f0f7ff; border: 1px solid #bfdbfe; padding: 7px 10px; font-size: 7.5px; color: #1e3a5f; line-height: 1.6; margin-bottom: 4px; }}
+.footer-bar {{ background-color: #0f2137; margin-top: 13px; padding: 7px 17px; }}
+.footer-table {{ width: 100%; border-collapse: collapse; }}
+.footer-left {{ font-size: 7px; color: #94a3b8; vertical-align: middle; }}
+.footer-bold {{ color: #e2e8f0; font-weight: bold; }}
+.footer-right {{ font-size: 6.5px; color: #475569; text-align: right; vertical-align: middle; }}
+</style></head><body>
+<table class="layout-table"><tr>
+  <td class="col-sidebar">
     <div class="logo-area">
-      <div class="logo-row">
-        <div class="logo-circles">
-          <div class="lc1"></div>
-          <div class="lc2"></div>
-          <div class="lc3"></div>
-        </div>
-        <div class="logo-text"><b>perfil</b><span>.work</span></div>
-      </div>
+      <div class="logo-icons"><span class="lc lc1"></span><span class="lc lc2"></span><span class="lc lc3"></span></div>
+      <div class="logo-text">perfil<span class="logo-light">.work</span></div>
       <div class="logo-tagline">talento que impulsa resultados</div>
     </div>
-
-    <div class="avatar">{iniciales}</div>
+    <div class="avatar-wrap"><div class="avatar-circle"><span class="avatar-text">{iniciales}</span></div></div>
     <div class="s-nombre">{nombre}</div>
     <div class="s-cargo">{cargo}</div>
-
     <div class="s-divider"></div>
     <div class="s-label">Contacto</div>
-
-    {'<div class="contact-row"><div class="contact-icon">✉</div><div class="contact-text">' + email + '</div></div>' if email else ''}
-    {'<div class="contact-row"><div class="contact-icon">☏</div><div class="contact-text">' + telefono + '</div></div>' if telefono else ''}
-    {'<div class="contact-row"><div class="contact-icon">⌖</div><div class="contact-text">' + region + '</div></div>' if region else ''}
-
-    {'<div class="s-divider"></div><div class="s-label">Habilidades técnicas</div><div class="skills-wrap">' + skills_html + '</div>' if skills_html else ''}
-
-    {'<div class="s-divider"></div><div class="s-label">Formación</div>' + formacion_html if formacion_html else ''}
-
-    {'<div class="s-divider"></div><div class="s-label">Certificaciones</div>' + certs_html if certs_html else ''}
-
-  </div>
-
-  <!-- MAIN -->
-  <div class="main">
-
+    {contacto_html}
+    {skills_section}
+    {formacion_section}
+    {certs_section}
+  </td>
+  <td class="col-main">
     <div class="m-header">
       <div class="m-nombre">{nombre}</div>
-      <div class="m-cargo">{cargo}</div>
+      <div class="m-cargo-label">{cargo}</div>
       <div class="m-perfil">{data['perfil']}</div>
-      <div class="badges">{badges_html}</div>
+      <div>{badges_html}</div>
     </div>
-
-    {'<div class="section-label">Experiencia laboral</div>' + exp_html if exp_html else ''}
-
+    {exp_section}
     {info_html}
-
-    <div class="footer">
-      <div class="footer-logo">
-        <div class="footer-circles">
-          <div class="fc1"></div>
-          <div class="fc2"></div>
-          <div class="fc3"></div>
-        </div>
-        <span class="footer-brand"><b>perfil</b>.work · talento que impulsa resultados</span>
-      </div>
-      <span class="footer-generated">Generado por perfil.work</span>
+    <div class="footer-bar">
+      <table class="footer-table"><tr>
+        <td class="footer-left"><span class="footer-bold">perfil</span>.work · talento que impulsa resultados</td>
+        <td class="footer-right">Generado por perfil.work</td>
+      </tr></table>
     </div>
+  </td>
+</tr></table>
+</body></html>"""
 
-  </div>
-
-</div>
-</body>
-</html>
-"""
-    return html
-
-
-# =========================
-# GENERAR PDF con WeasyPrint
-# =========================
 
 def generar_pdf(nombre, cargo, email, telefono, region, sueldo, nivel, area, data):
     html = generar_html(nombre, cargo, email, telefono, region, sueldo, nivel, area, data)
-    pdf_bytes = WeasyprintHTML(string=html).write_pdf()
-    buffer = BytesIO(pdf_bytes)
+    buffer = BytesIO()
+    pisa.CreatePDF(html, dest=buffer)
     buffer.seek(0)
     return buffer
 
 
-# =========================
-# ROUTE
-# =========================
-
 @app.route("/crear-cv", methods=["GET", "POST"])
 def crear_cv():
-
     if request.method == "GET":
         return "Servicio activo"
-
     try:
-        file       = request.files.get("cv")
-        info_extra = request.form.get("info_extra", "")
-        nombre     = request.form.get("nombre", "Nombre")
-        cargo      = request.form.get("cargo", "Cargo")
-        email      = request.form.get("email", "")
-        telefono   = request.form.get("telefono", "")
-        region     = request.form.get("region", "")
-        area       = request.form.get("area", "")
+        file        = request.files.get("cv")
+        info_extra  = request.form.get("info_extra", "")
+        nombre      = request.form.get("nombre", "Nombre")
+        cargo       = request.form.get("cargo", "Cargo")
+        email       = request.form.get("email", "")
+        telefono    = request.form.get("telefono", "")
+        region      = request.form.get("region", "")
+        area        = request.form.get("area", "")
         experiencia = request.form.get("experiencia", "")
-        nivel      = request.form.get("nivel", "")
-        sueldo     = request.form.get("sueldo", "")
+        nivel       = request.form.get("nivel", "")
+        sueldo      = request.form.get("sueldo", "")
 
-        # Guardar en Supabase
         try:
             supabase.table("candidatos").insert({
-                "nombre":     nombre,
-                "email":      email,
-                "telefono":   telefono,
-                "region":     region,
-                "cargo":      cargo,
-                "area":       area,
-                "experiencia": experiencia,
-                "nivel":      nivel,
-                "sueldo":     sueldo,
-                "info_extra": info_extra,
-                "cv_url":     ""
+                "nombre": nombre, "email": email, "telefono": telefono,
+                "region": region, "cargo": cargo, "area": area,
+                "experiencia": experiencia, "nivel": nivel,
+                "sueldo": sueldo, "info_extra": info_extra, "cv_url": ""
             }).execute()
-            print("✅ Candidato guardado en Supabase")
+            print("Candidato guardado")
         except Exception as e:
             print("ERROR SUPABASE:", e)
 
-        # Procesar CV
         texto = extraer_texto(file)
         texto_procesado = preprocesar_cv(texto)
-
-        # Mejorar con IA
         data = mejorar_cv(texto_procesado, info_extra)
-
-        # Generar PDF
         pdf = generar_pdf(nombre, cargo, email, telefono, region, sueldo, nivel, area, data)
 
         return Response(
@@ -884,7 +344,6 @@ def crear_cv():
             mimetype="application/pdf",
             headers={"Content-Disposition": "attachment; filename=cv_mejorado.pdf"}
         )
-
     except Exception as e:
         print("ERROR GENERAL:", e)
         return "Error interno del servidor", 500
