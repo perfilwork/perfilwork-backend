@@ -75,7 +75,7 @@ CV ORIGINAL:
 {texto_cv}
 
 INSTRUCCIONES:
-1. El PERFIL debe ser un párrafo de 3-4 líneas que resuma lo mejor del candidato, usando tanto el CV como la información adicional.
+1. El PERFIL debe ser SIEMPRE un párrafo de 3-4 líneas que resuma lo mejor del candidato. Si el CV no tiene resumen, créalo tú a partir de la experiencia real que aparece en el CV. No inventes datos — solo sintetiza lo que ya está ahí.
 2. La EXPERIENCIA debe estar ordenada del más reciente al más antiguo, con empresa, cargo, período y funciones concretas.
 3. Las COMPETENCIAS deben incluir herramientas, equipos, procesos y habilidades técnicas reales mencionadas en el CV o en la información adicional.
 4. Las CERTIFICACIONES deben incluir todo lo mencionado en el CV o en la información adicional.
@@ -208,7 +208,7 @@ def generar_html(nombre, cargo, email, telefono, region, sueldo, nivel, area, da
     contacto_str = "  |  ".join(contacto_partes)
 
     # Pretensión salarial
-    sueldo_html = f'<div class="sueldo">Pretensión salarial: <strong>${sueldo}</strong></div>' if sueldo and sueldo.strip() else ""
+    sueldo_html = f'<div class="sueldo">Pretensión salarial: <strong>${sueldo} Pesos Líquidos</strong></div>' if sueldo and sueldo.strip() else ""
 
     return f"""<!DOCTYPE html>
 <html lang="es">
@@ -247,20 +247,10 @@ body {{
     margin-bottom: 10px;
 }}
 
-.logo-text {{
-    font-size: 13pt;
-    font-weight: bold;
-    color: #1e293b;
-}}
-
-.logo-dot {{
-    color: #1d4ed8;
-}}
-
-.logo-tagline {{
-    font-size: 8pt;
-    color: #94a3b8;
+.logo-img {{
+    height: 44px;
     display: block;
+    margin-left: auto;
 }}
 
 .nombre {{
@@ -301,7 +291,7 @@ body {{
     color: #1d4ed8;
     text-transform: uppercase;
     letter-spacing: 1px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 0.5px solid #e2e8f0;
     padding-bottom: 4px;
     margin-bottom: 10px;
 }}
@@ -316,8 +306,8 @@ body {{
 /* EXPERIENCIA */
 .exp-card {{
     margin-bottom: 14px;
-    padding-left: 12px;
-    border-left: 2px solid #e2e8f0;
+    padding-bottom: 10px;
+    border-bottom: 0.5px solid #f1f5f9;
 }}
 
 .exp-header {{
@@ -398,20 +388,18 @@ body {{
 
 /* FOOTER */
 .footer {{
-    border-top: 1px solid #e2e8f0;
+    border-top: 0.5px solid #e2e8f0;
     padding-top: 8px;
     margin-top: 20px;
-    display: block;
-    text-align: center;
 }}
 
 .footer-text {{
-    font-size: 8.5pt;
+    font-size: 8pt;
     color: #94a3b8;
 }}
 
 .footer-bold {{
-    color: #475569;
+    color: #64748b;
     font-weight: bold;
 }}
 </style>
@@ -421,8 +409,7 @@ body {{
 <!-- HEADER -->
 <div class="header">
     <div class="logo-row">
-        <span class="logo-text">perfil<span class="logo-dot">.work</span></span>
-        <span class="logo-tagline">talento que impulsa resultados</span>
+        <img src="https://raw.githubusercontent.com/perfilwork/perfilwork-backend/main/logo.png" class="logo-img" alt="Perfil.Work">
     </div>
     <div class="nombre">{nombre}</div>
     <div class="cargo-titulo">{cargo}</div>
@@ -450,7 +437,7 @@ body {{
 
 <!-- FOOTER -->
 <div class="footer">
-    <span class="footer-text">CV generado por <span class="footer-bold">perfil.work</span> · talento que impulsa resultados · www.perfil.work</span>
+    <span class="footer-text">Generado por <span class="footer-bold">Perfil.Work</span> | Talento que Impulsa Resultados</span>
 </div>
 
 </body>
