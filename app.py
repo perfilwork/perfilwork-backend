@@ -382,7 +382,7 @@ body {{
 }}
 
 .lista-pills li:before {{
-    content: "▸ ";
+    content: "> ";
     color: #1d4ed8;
 }}
 
