@@ -157,11 +157,11 @@ def generar_html(nombre, cargo, email, telefono, region, sueldo, nivel, area, da
     iniciales = obtener_iniciales(nombre)
 
     badges = []
-    if sueldo:
-        badges.append(f'<span class="badge">$ {sueldo}</span>')
-    if nivel:
+    if sueldo and sueldo.strip():
+        badges.append(f'<span class="badge">&#36; {sueldo}</span>')
+    if nivel and nivel.strip() and len(nivel.strip()) <= 20:
         badges.append(f'<span class="badge">{nivel}</span>')
-    if area:
+    if area and area.strip() and len(area.strip()) <= 40:
         badges.append(f'<span class="badge">{area}</span>')
     badges_html = "".join(badges)
 
@@ -183,10 +183,10 @@ def generar_html(nombre, cargo, email, telefono, region, sueldo, nivel, area, da
 
     formacion_html = ""
     for f in data["formacion"][:4]:
-        anio = f"· {f['anio']}" if f["anio"] else ""
+        anio = f"· {f['anio']}" if f["anio"] and f["anio"].strip() and f["anio"].strip().lower() not in ["año", "anio", "n/a", "-", ""] else ""
         formacion_html += f'<div class="s-edu"><div class="s-edu-titulo">{f["titulo"]}</div><div class="s-edu-inst">{f["institucion"]} {anio}</div></div>'
 
-    skills_html = "".join([f'<span class="skill-pill">{c}</span>' for c in data["competencias"][:10]])
+    skills_html = " ".join([f'<span class="skill-pill">{c}</span>' for c in data["competencias"][:10]])
     certs_html = "".join([f'<div class="s-cert"><span class="cert-dot">&#9679;</span><span class="cert-txt">{c}</span></div>' for c in data["certificaciones"][:5]])
 
     contacto_html = ""
