@@ -2,6 +2,7 @@ flask
 flask-cors
 openai
 supabase
-weasyprint
+xhtml2pdf
 python-docx
 PyPDF2
+gunicorn
