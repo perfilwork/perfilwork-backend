@@ -208,58 +208,58 @@ def generar_html(nombre, cargo, email, telefono, region, sueldo, nivel, area, da
 <style>
 @page {{ size: A4; margin: 0; }}
 * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-body {{ font-family: Helvetica, Arial, sans-serif; font-size: 10px; color: #334155; background: #ffffff; }}
+body {{ font-family: Helvetica, Arial, sans-serif; font-size: 13px; color: #334155; background: #ffffff; }}
 .layout-table {{ width: 210mm; min-height: 297mm; border-collapse: collapse; }}
-.col-sidebar {{ width: 68mm; background-color: #0f2137; vertical-align: top; padding: 18px 13px; }}
-.col-main {{ vertical-align: top; padding: 20px 17px 0 17px; background-color: #ffffff; }}
-.logo-area {{ text-align: center; padding-bottom: 11px; border-bottom: 1px solid #1e3a5f; margin-bottom: 11px; }}
-.logo-text {{ font-size: 13px; color: #e2e8f0; font-weight: bold; margin-bottom: 2px; }}
+.col-sidebar {{ width: 70mm; background-color: #0f2137; vertical-align: top; padding: 20px 15px; }}
+.col-main {{ vertical-align: top; padding: 22px 20px 0 20px; background-color: #ffffff; }}
+.logo-area {{ text-align: center; padding-bottom: 14px; border-bottom: 1px solid #1e3a5f; margin-bottom: 14px; }}
+.logo-text {{ font-size: 16px; color: #e2e8f0; font-weight: bold; margin-bottom: 3px; }}
 .logo-light {{ color: #94a3b8; font-weight: normal; }}
-.logo-tagline {{ font-size: 6.5px; color: #475569; letter-spacing: 0.5px; }}
-.logo-icons {{ margin-bottom: 4px; }}
+.logo-tagline {{ font-size: 9px; color: #475569; letter-spacing: 0.5px; }}
+.logo-icons {{ margin-bottom: 5px; }}
 .lc {{ display: inline-block; border-radius: 50%; }}
-.lc1 {{ width: 14px; height: 14px; background-color: #e05a4e; }}
-.lc2 {{ width: 11px; height: 11px; background-color: #4a90d9; margin-left: -4px; vertical-align: bottom; }}
-.lc3 {{ width: 9px; height: 9px; background-color: #2ec4a5; margin-left: -5px; vertical-align: bottom; }}
-.avatar-wrap {{ text-align: center; margin-bottom: 7px; }}
-.avatar-circle {{ display: inline-block; width: 46px; height: 46px; background-color: #1d4ed8; border-radius: 23px; text-align: center; padding-top: 10px; }}
-.avatar-text {{ font-size: 16px; font-weight: bold; color: #ffffff; }}
-.s-nombre {{ font-size: 10.5px; font-weight: bold; color: #f1f5f9; text-align: center; margin-bottom: 2px; line-height: 1.3; }}
-.s-cargo {{ font-size: 7.5px; color: #60a5fa; text-align: center; text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 11px; line-height: 1.3; }}
-.s-divider {{ height: 1px; background-color: #1e3a5f; margin: 8px 0; }}
-.s-label {{ font-size: 7px; color: #60a5fa; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; margin-bottom: 5px; margin-top: 2px; }}
-.contact-row {{ margin-bottom: 4px; line-height: 1.4; }}
-.contact-icon {{ font-size: 7.5px; color: #3b82f6; margin-right: 4px; }}
-.contact-text {{ font-size: 7.5px; color: #94a3b8; }}
-.skills-wrap {{ margin-bottom: 3px; }}
-.skill-pill {{ display: inline-block; background-color: #1e3a5f; color: #93c5fd; font-size: 6.5px; padding: 2px 6px; border-radius: 10px; margin: 2px 2px 0 0; line-height: 1.5; }}
-.s-edu {{ margin-bottom: 5px; }}
-.s-edu-titulo {{ font-size: 7.5px; color: #cbd5e1; font-weight: bold; line-height: 1.3; }}
-.s-edu-inst {{ font-size: 7px; color: #64748b; line-height: 1.3; }}
-.s-cert {{ margin-bottom: 3px; line-height: 1.4; }}
-.cert-dot {{ font-size: 5px; color: #1d4ed8; margin-right: 4px; }}
-.cert-txt {{ font-size: 7px; color: #94a3b8; }}
-.m-header {{ padding-bottom: 10px; border-bottom: 2px solid #1d4ed8; margin-bottom: 12px; }}
-.m-nombre {{ font-size: 18px; font-weight: bold; color: #0f172a; letter-spacing: -0.3px; margin-bottom: 2px; line-height: 1.2; }}
-.m-cargo-label {{ font-size: 8.5px; font-weight: bold; color: #1d4ed8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }}
-.m-perfil {{ font-size: 8px; color: #475569; line-height: 1.6; margin-bottom: 6px; }}
-.badge {{ display: inline-block; background-color: #eff6ff; color: #1d4ed8; font-size: 7px; font-weight: bold; padding: 2px 7px; border-radius: 10px; border: 1px solid #bfdbfe; margin-right: 3px; margin-bottom: 2px; }}
-.section-label {{ font-size: 7.5px; font-weight: bold; color: #1d4ed8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 7px; margin-top: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }}
-.exp-card {{ border-left: 2px solid #1d4ed8; padding: 7px 9px; margin-bottom: 7px; background-color: #f8fafc; }}
+.lc1 {{ width: 16px; height: 16px; background-color: #e05a4e; }}
+.lc2 {{ width: 13px; height: 13px; background-color: #4a90d9; margin-left: -4px; vertical-align: bottom; }}
+.lc3 {{ width: 10px; height: 10px; background-color: #2ec4a5; margin-left: -5px; vertical-align: bottom; }}
+.avatar-wrap {{ text-align: center; margin-bottom: 9px; }}
+.avatar-circle {{ display: inline-block; width: 50px; height: 50px; background-color: #1d4ed8; border-radius: 25px; text-align: center; padding-top: 11px; }}
+.avatar-text {{ font-size: 18px; font-weight: bold; color: #ffffff; }}
+.s-nombre {{ font-size: 13px; font-weight: bold; color: #f1f5f9; text-align: center; margin-bottom: 3px; line-height: 1.3; }}
+.s-cargo {{ font-size: 10px; color: #60a5fa; text-align: center; text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 13px; line-height: 1.3; }}
+.s-divider {{ height: 1px; background-color: #1e3a5f; margin: 10px 0; }}
+.s-label {{ font-size: 9px; color: #60a5fa; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; margin-bottom: 7px; margin-top: 3px; }}
+.contact-row {{ margin-bottom: 6px; line-height: 1.5; }}
+.contact-icon {{ font-size: 10px; color: #3b82f6; margin-right: 5px; }}
+.contact-text {{ font-size: 10px; color: #94a3b8; }}
+.skills-wrap {{ margin-bottom: 4px; }}
+.skill-pill {{ display: inline-block; background-color: #1e3a5f; color: #93c5fd; font-size: 9px; padding: 3px 8px; border-radius: 10px; margin: 3px 3px 0 0; line-height: 1.5; }}
+.s-edu {{ margin-bottom: 8px; }}
+.s-edu-titulo {{ font-size: 10px; color: #cbd5e1; font-weight: bold; line-height: 1.4; }}
+.s-edu-inst {{ font-size: 9px; color: #64748b; line-height: 1.4; }}
+.s-cert {{ margin-bottom: 5px; line-height: 1.5; }}
+.cert-dot {{ font-size: 7px; color: #1d4ed8; margin-right: 5px; }}
+.cert-txt {{ font-size: 10px; color: #94a3b8; }}
+.m-header {{ padding-bottom: 12px; border-bottom: 2px solid #1d4ed8; margin-bottom: 14px; }}
+.m-nombre {{ font-size: 22px; font-weight: bold; color: #0f172a; letter-spacing: -0.3px; margin-bottom: 3px; line-height: 1.2; }}
+.m-cargo-label {{ font-size: 11px; font-weight: bold; color: #1d4ed8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }}
+.m-perfil {{ font-size: 11px; color: #475569; line-height: 1.7; margin-bottom: 8px; }}
+.badge {{ display: inline-block; background-color: #eff6ff; color: #1d4ed8; font-size: 9px; font-weight: bold; padding: 3px 9px; border-radius: 10px; border: 1px solid #bfdbfe; margin-right: 4px; margin-bottom: 3px; }}
+.section-label {{ font-size: 9px; font-weight: bold; color: #1d4ed8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 9px; margin-top: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; }}
+.exp-card {{ border-left: 3px solid #1d4ed8; padding: 9px 11px; margin-bottom: 9px; background-color: #f8fafc; }}
 .exp-table {{ width: 100%; border-collapse: collapse; }}
 .exp-left {{ vertical-align: top; }}
 .exp-right {{ vertical-align: top; text-align: right; white-space: nowrap; padding-left: 6px; }}
-.exp-empresa {{ font-size: 9px; font-weight: bold; color: #0f172a; line-height: 1.3; }}
-.exp-cargo {{ font-size: 8px; color: #1d4ed8; font-weight: bold; line-height: 1.3; }}
-.exp-periodo {{ font-size: 7px; color: #94a3b8; }}
-.exp-bullets {{ padding-left: 11px; margin-top: 4px; }}
-.exp-bullets li {{ font-size: 7.5px; color: #475569; line-height: 1.5; margin-bottom: 1px; }}
-.info-box {{ background-color: #f0f7ff; border: 1px solid #bfdbfe; padding: 7px 10px; font-size: 7.5px; color: #1e3a5f; line-height: 1.6; margin-bottom: 4px; }}
-.footer-bar {{ background-color: #0f2137; margin-top: 13px; padding: 7px 17px; }}
+.exp-empresa {{ font-size: 12px; font-weight: bold; color: #0f172a; line-height: 1.4; }}
+.exp-cargo {{ font-size: 11px; color: #1d4ed8; font-weight: bold; line-height: 1.4; }}
+.exp-periodo {{ font-size: 10px; color: #94a3b8; }}
+.exp-bullets {{ padding-left: 13px; margin-top: 5px; }}
+.exp-bullets li {{ font-size: 10px; color: #475569; line-height: 1.6; margin-bottom: 2px; }}
+.info-box {{ background-color: #f0f7ff; border: 1px solid #bfdbfe; padding: 9px 12px; font-size: 10px; color: #1e3a5f; line-height: 1.7; margin-bottom: 4px; }}
+.footer-bar {{ background-color: #0f2137; margin-top: 14px; padding: 8px 20px; }}
 .footer-table {{ width: 100%; border-collapse: collapse; }}
-.footer-left {{ font-size: 7px; color: #94a3b8; vertical-align: middle; }}
+.footer-left {{ font-size: 9px; color: #94a3b8; vertical-align: middle; }}
 .footer-bold {{ color: #e2e8f0; font-weight: bold; }}
-.footer-right {{ font-size: 6.5px; color: #475569; text-align: right; vertical-align: middle; }}
+.footer-right {{ font-size: 9px; color: #475569; text-align: right; vertical-align: middle; }}
 </style></head><body>
 <table class="layout-table"><tr>
   <td class="col-sidebar">
