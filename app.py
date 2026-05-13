@@ -332,9 +332,9 @@ body {{
 
 /* EXPERIENCIA */
 .exp-card {{
-    margin-bottom: 12px;
-    padding-bottom: 0px;
-    border-bottom: none;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 0.5px solid #f0f0f0;
     border-left: none;
     padding-left: 0px;
 }}
@@ -355,14 +355,14 @@ body {{
 .exp-periodo-wrap {{
     display: table-cell;
     text-align: right;
-    vertical-align: top;
+    vertical-align: middle;
     white-space: nowrap;
-    padding-left: 6px;
+    width: 80px;
 }}
 
 .exp-periodo {{
     font-size: 9pt;
-    color: #64748b;
+    color: #94a3b8;
     font-style: normal;
 }}
 
