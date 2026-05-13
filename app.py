@@ -188,10 +188,7 @@ def generar_html(nombre, cargo, email, telefono, region, sueldo, nivel, area, da
         inline_block = f'<div><span class="exp-cargo-inline">{exp["cargo"]}:</span> <span class="exp-funcion-inline">{primera}</span></div>' if primera else f'<div class="exp-cargo-inline">{exp["cargo"]}</div>'
         exp_html += f"""
         <div class="exp-card">
-            <table class="exp-top"><tr>
-                <td class="exp-empresa">{exp['empresa']}</td>
-                <td class="exp-periodo-wrap">{periodo}</td>
-            </tr></table>
+            <div class="exp-empresa-row"><span class="exp-empresa">{exp['empresa']}</span>{(" " + periodo) if periodo else ""}</div>
             {inline_block}
             {resto_block}
         </div>"""
