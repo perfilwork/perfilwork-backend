@@ -291,9 +291,9 @@ body {{
     color: #114f96;
     text-transform: uppercase;
     letter-spacing: 1px;
-    padding-bottom: 3px;
+    padding-bottom: 5px;
     margin-bottom: 10px;
-    border-bottom: 1.5px solid #2ec4a5;
+    border-bottom: 0.5px solid #e8edf2;
 }}
 
 /* PERFIL */
@@ -305,9 +305,9 @@ body {{
 
 /* EXPERIENCIA */
 .exp-card {{
-    margin-bottom: 12px;
+    margin-bottom: 14px;
     padding-bottom: 12px;
-    border-bottom: 0.5px solid #e2e8f0;
+    border-bottom: none;
 }}
 
 .exp-header {{
