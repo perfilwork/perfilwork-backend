@@ -75,7 +75,7 @@ CV ORIGINAL:
 {texto_cv}
 
 INSTRUCCIONES:
-1. El PERFIL debe ser SIEMPRE un párrafo de 3-4 líneas que resuma lo mejor del candidato. Si el CV no tiene resumen, créalo tú a partir de la experiencia real que aparece en el CV. No inventes datos — solo sintetiza lo que ya está ahí.
+1. El PERFIL debe ser SIEMPRE un párrafo único de exactamente 4-5 líneas que resuma al candidato de forma personalizada. Léete TODA la experiencia del CV y TODA la información adicional del formulario para construirlo. Debe mencionar: años de experiencia, especialidades principales, rubros donde ha trabajado, y algo diferenciador que lo destaque. NUNCA uses frases genéricas como "profesional comprometido" o "orientado a resultados". Sé específico con los datos reales del candidato.
 2. La EXPERIENCIA debe estar ordenada del más reciente al más antiguo, con empresa, cargo, período y funciones concretas.
 3. Las COMPETENCIAS deben incluir herramientas, equipos, procesos y habilidades técnicas reales mencionadas en el CV o en la información adicional.
 4. Las CERTIFICACIONES deben incluir todo lo mencionado en el CV o en la información adicional.
@@ -173,9 +173,9 @@ def generar_html(nombre, cargo, email, telefono, region, sueldo, nivel, area, da
         periodo = f'<span class="exp-periodo">{exp["periodo"]}</span>' if exp["periodo"] else ""
         exp_html += f"""
         <div class="exp-card">
-            <div class="exp-header">
-                <span class="exp-empresa">{exp['empresa']}</span>
-                {periodo}
+            <div class="exp-top">
+                <div class="exp-empresa">{exp['empresa']}</div>
+                <div class="exp-periodo-wrap">{periodo}</div>
             </div>
             <div class="exp-cargo">{exp['cargo']}</div>
             {funciones_block}
@@ -238,7 +238,7 @@ body {{
 .header {{
     padding-bottom: 14px;
     margin-bottom: 18px;
-    border-bottom: 4px solid #e05a4e;
+    border-bottom: none;
 }}
 
 .logo-row {{
@@ -305,33 +305,46 @@ body {{
 
 /* EXPERIENCIA */
 .exp-card {{
-    margin-bottom: 14px;
-    padding-bottom: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
     border-bottom: none;
+    padding-left: 10px;
+    border-left: 3px solid #e8edf2;
 }}
 
-.exp-header {{
-    display: block;
+.exp-top {{
+    display: table;
+    width: 100%;
     margin-bottom: 2px;
 }}
 
 .exp-empresa {{
-    font-size: 11.5pt;
+    font-size: 12pt;
     font-weight: bold;
     color: #0f172a;
+    display: table-cell;
+}}
+
+.exp-periodo-wrap {{
+    display: table-cell;
+    text-align: right;
+    vertical-align: top;
+    white-space: nowrap;
+    padding-left: 8px;
 }}
 
 .exp-periodo {{
-    font-size: 9.5pt;
+    font-size: 9pt;
     color: #94a3b8;
-    float: right;
+    font-style: italic;
 }}
 
 .exp-cargo {{
     font-size: 10.5pt;
     color: #114f96;
     font-weight: bold;
-    margin-bottom: 5px;
+    margin-bottom: 6px;
+    margin-top: 1px;
 }}
 
 .exp-bullets {{
