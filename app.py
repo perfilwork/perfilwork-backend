@@ -155,7 +155,8 @@ Devuelve SOLO JSON valido con esta estructura exacta, sin texto adicional:
     for item in data.get("formacion", []):
         if isinstance(item, dict):
             anio = str(item.get("anio", "")).strip()
-            if anio.lower() in ["año", "anio", "n/a", "-", ""]:
+            palabras_invalidas = ["año", "anio", "n/a", "-", "", "no especificado", "no especificada", "desconocido", "sin información", "sin informacion"]
+            if anio.lower() in palabras_invalidas:
                 anio = ""
             formacion_ok.append({
                 "titulo": str(item.get("titulo", "")),
@@ -178,17 +179,21 @@ def generar_html(nombre, cargo, email, telefono, region, sueldo, nivel, area, da
     # Experiencia
     exp_html = ""
     for exp in data["experiencia"][:8]:
-        funciones_items = "".join([f"<li>{f}</li>" for f in exp["funciones"][:5]])
-        funciones_block = f'<ul class="exp-bullets">{funciones_items}</ul>' if funciones_items else ""
         periodo = f'<span class="exp-periodo">{exp["periodo"]}</span>' if exp["periodo"] else ""
+        funciones = exp["funciones"][:5]
+        primera = funciones[0] if funciones else ""
+        resto = funciones[1:] if len(funciones) > 1 else []
+        resto_items = "".join([f"<li>{f}</li>" for f in resto])
+        resto_block = f'<ul class="exp-extra-bullets">{resto_items}</ul>' if resto_items else ""
+        inline_block = f'<div><span class="exp-cargo-inline">{exp["cargo"]}:</span> <span class="exp-funcion-inline">{primera}</span></div>' if primera else f'<div class="exp-cargo-inline">{exp["cargo"]}</div>'
         exp_html += f"""
         <div class="exp-card">
             <div class="exp-top">
                 <div class="exp-empresa">{exp['empresa']}</div>
                 <div class="exp-periodo-wrap">{periodo}</div>
             </div>
-            <div class="exp-cargo">{exp['cargo']}</div>
-            {funciones_block}
+            {inline_block}
+            {resto_block}
         </div>"""
 
     # Formación
@@ -238,99 +243,110 @@ def generar_html(nombre, cargo, email, telefono, region, sueldo, nivel, area, da
 
 body {{
     font-family: Helvetica, Arial, sans-serif;
-    font-size: 11pt;
+    font-size: 10pt;
     color: #1e293b;
     background: #ffffff;
-    line-height: 1.5;
+    line-height: 1.35;
 }}
 
 /* HEADER */
 .header {{
-    padding-bottom: 14px;
-    margin-bottom: 18px;
+    padding-bottom: 10px;
+    margin-bottom: 12px;
     border-bottom: none;
 }}
 
 .logo-row {{
     display: block;
     text-align: right;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
 }}
 
 .logo-img {{
-    height: 44px;
+    height: 40px;
     display: block;
     margin-left: auto;
 }}
 
 .nombre {{
-    font-size: 22pt;
+    font-size: 20pt;
     font-weight: bold;
     color: #0f172a;
-    line-height: 1.2;
-    margin-bottom: 4px;
+    line-height: 1.15;
+    margin-bottom: 2px;
 }}
 
 .cargo-titulo {{
-    font-size: 12pt;
+    font-size: 11pt;
     color: #114f96;
     font-weight: bold;
-    margin-bottom: 8px;
-}}
-
-.contacto {{
-    font-size: 10pt;
-    color: #64748b;
     margin-bottom: 4px;
 }}
 
+.contacto {{
+    font-size: 9pt;
+    color: #64748b;
+    margin-bottom: 2px;
+}}
+
 .sueldo {{
-    font-size: 10pt;
+    font-size: 9pt;
     color: #475569;
-    margin-top: 4px;
-    margin-bottom: 18px;
+    margin-top: 2px;
+    margin-bottom: 0px;
 }}
 
 /* SECCIONES */
 .section {{
-    margin-bottom: 16px;
+    margin-bottom: 0px;
+    margin-top: 0px;
 }}
 
 .section-title {{
-    font-size: 13pt;
+    font-size: 11pt;
     font-weight: bold;
     color: #114f96;
     text-transform: uppercase;
-    letter-spacing: 1.5px;
-    padding-bottom: 6px;
-    margin-bottom: 12px;
-    border-bottom: 1.5px solid #e05a4e;
+    letter-spacing: 1px;
+    margin-top: 14px;
+    margin-bottom: 5px;
+    border-bottom: none;
+    padding-bottom: 0px;
+}}
+
+.section-divider {{
+    height: 1px;
+    background-color: #d8dde6;
+    margin-top: 8px;
+    margin-bottom: 0px;
+    border: none;
+    display: block;
 }}
 
 /* PERFIL */
 .perfil-texto {{
-    font-size: 11pt;
+    font-size: 10pt;
     color: #334155;
-    line-height: 1.7;
+    line-height: 1.45;
 }}
 
 /* EXPERIENCIA */
 .exp-card {{
-    margin-bottom: 16px;
-    padding-bottom: 14px;
+    margin-bottom: 7px;
+    padding-bottom: 0px;
     border-bottom: none;
-    padding-left: 10px;
-    border-left: 3px solid #e8edf2;
+    border-left: none;
+    padding-left: 0px;
 }}
 
 .exp-top {{
     display: table;
     width: 100%;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
 }}
 
 .exp-empresa {{
-    font-size: 11pt;
+    font-size: 10pt;
     font-weight: bold;
     color: #0f172a;
     display: table-cell;
@@ -341,46 +357,58 @@ body {{
     text-align: right;
     vertical-align: top;
     white-space: nowrap;
-    padding-left: 8px;
+    padding-left: 6px;
 }}
 
 .exp-periodo {{
     font-size: 9pt;
-    color: #94a3b8;
-    font-style: italic;
+    color: #64748b;
+    font-style: normal;
 }}
 
-.exp-cargo {{
+.exp-cargo-inline {{
     font-size: 10pt;
-    color: #4a90d9;
-    font-weight: 600;
-    margin-bottom: 6px;
-    margin-top: 2px;
-    font-style: italic;
+    color: #114f96;
+    font-weight: bold;
+    display: inline;
 }}
 
-.exp-bullets {{
-    padding-left: 16px;
-    margin-top: 4px;
+.exp-sep {{
+    font-size: 10pt;
+    color: #114f96;
+    font-weight: bold;
 }}
 
-.exp-bullets li {{
-    font-size: 10.5pt;
+.exp-funcion-inline {{
+    font-size: 9.5pt;
     color: #475569;
-    margin-bottom: 3px;
-    line-height: 1.5;
+    display: inline;
+}}
+
+.exp-extra-bullets {{
+    padding-left: 14px;
+    margin-top: 2px;
+    margin-bottom: 0px;
+}}
+
+.exp-extra-bullets li {{
+    font-size: 9.5pt;
+    color: #475569;
+    margin-bottom: 1px;
+    line-height: 1.35;
 }}
 
 /* LISTAS */
 .lista-simple {{
-    padding-left: 16px;
+    padding-left: 0px;
+    list-style: none;
 }}
 
 .lista-simple li {{
-    font-size: 10.5pt;
+    font-size: 9.5pt;
     color: #334155;
-    margin-bottom: 4px;
-    line-height: 1.5;
+    margin-bottom: 2px;
+    line-height: 1.35;
 }}
 
 .lista-pills {{
@@ -389,37 +417,34 @@ body {{
 }}
 
 .lista-pills li {{
-    font-size: 10.5pt;
+    font-size: 9.5pt;
     color: #334155;
-    margin-bottom: 4px;
-    padding-left: 12px;
-    line-height: 1.5;
+    margin-bottom: 2px;
+    padding-left: 10px;
+    line-height: 1.35;
 }}
 
 .lista-pills li:before {{
-    content: "> ";
-    color: #e05a4e;
+    content: "• ";
+    color: #114f96;
 }}
 
 /* DISPONIBILIDAD */
 .disp-box {{
-    font-size: 10.5pt;
+    font-size: 9.5pt;
     color: #334155;
-    background-color: #f8fafc;
-    border: 1px solid #e2e8f0;
-    padding: 10px 14px;
-    line-height: 1.6;
+    line-height: 1.4;
 }}
 
 /* FOOTER */
 .footer {{
     border-top: 0.5px solid #e2e8f0;
-    padding-top: 8px;
-    margin-top: 20px;
+    padding-top: 6px;
+    margin-top: 14px;
 }}
 
 .footer-text {{
-    font-size: 8pt;
+    font-size: 7.5pt;
     color: #94a3b8;
 }}
 
