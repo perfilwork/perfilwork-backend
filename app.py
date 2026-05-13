@@ -340,8 +340,8 @@ body {{
 }}
 
 .exp-top {{
-    display: table;
     width: 100%;
+    border-collapse: collapse;
     margin-bottom: 0px;
 }}
 
