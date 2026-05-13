@@ -59,52 +59,62 @@ def extraer_json(texto):
 
 def mejorar_cv(texto_cv, info_extra, cargo, area, nivel, experiencia_anios):
     prompt = f"""
-Eres un experto en recursos humanos especializado en talento técnico e industrial en Chile.
-Tu tarea es transformar la información de este candidato en un CV profesional, claro y bien estructurado.
+Eres un experto en recursos humanos especializado en talento tecnico industrial en Chile, con 30 anos de experiencia reclutando perfiles operativos, tecnicos y profesionales en mineria, construccion, mantenimiento e industria.
 
-CONTEXTO DEL CANDIDATO:
-- Cargo al que aplica: {cargo}
-- Área: {area}
+Tu mision es leer TODO el contenido del CV y la informacion adicional, y reorganizar esa informacion en un CV profesional estructurado. No es solo ordenar — es interpretar y distribuir correctamente cada dato en la seccion que le corresponde.
+
+DATOS DEL FORMULARIO:
+- Cargo: {cargo}
+- Area: {area}
+- Anos de experiencia declarados: {experiencia_anios}
 - Nivel: {nivel}
-- Años de experiencia declarados: {experiencia_anios}
 
-INFORMACIÓN ADICIONAL DEL CANDIDATO (muy importante — puede incluir habilidades, certificaciones, disponibilidad, equipos que maneja, tipo de turno, etc. Úsala para enriquecer todas las secciones del CV):
-{info_extra}
-
-CV ORIGINAL:
+CV ORIGINAL DEL CANDIDATO (lee todo antes de escribir):
 {texto_cv}
 
-INSTRUCCIONES:
-1. El PERFIL debe ser SIEMPRE un párrafo único de exactamente 4-5 líneas que resuma al candidato de forma personalizada. Léete TODA la experiencia del CV y TODA la información adicional del formulario para construirlo. Debe mencionar: años de experiencia, especialidades principales, rubros donde ha trabajado, y algo diferenciador que lo destaque. NUNCA uses frases genéricas como "profesional comprometido" o "orientado a resultados". Sé específico con los datos reales del candidato.
-2. La EXPERIENCIA debe estar ordenada del más reciente al más antiguo, con empresa, cargo, período y funciones concretas.
-3. Las COMPETENCIAS deben incluir herramientas, equipos, procesos y habilidades técnicas reales mencionadas en el CV o en la información adicional.
-4. Las CERTIFICACIONES deben incluir todo lo mencionado en el CV o en la información adicional.
-5. La DISPONIBILIDAD debe extraerse de la información adicional (turno, régimen, licencias, movilización, etc.).
-6. NO inventes información. Solo usa lo que está en el CV o en la información adicional.
-7. Corrige errores ortográficos y mejora la redacción sin cambiar los hechos.
+INFORMACION ADICIONAL DEL CANDIDATO:
+{info_extra}
 
-Devuelve SOLO JSON válido con esta estructura:
+INSTRUCCIONES CRITICAS — sigue cada una al pie de la letra:
+
+1. PERFIL: Escribe un parrafo unico de 4-5 lineas construido desde cero leyendo TODA la experiencia del CV. Menciona: cuantos anos lleva en el rubro, en que procesos o especialidades es experto, en que industrias o tipos de proyectos ha trabajado, y algun dato especifico que lo diferencie. NO copies la informacion adicional directamente aqui. NO uses frases vacias como "profesional comprometido", "orientado a resultados" o similares.
+
+2. EXPERIENCIA: Ordena del trabajo mas reciente al mas antiguo. Cada entrada debe tener empresa, cargo, periodo y funciones en bullets concretos. Las funciones NO deben repetir el nombre del proyecto — deben describir QUE HIZO el candidato especificamente.
+
+3. COMPETENCIAS: Incluye solo habilidades tecnicas reales — procesos, equipos, herramientas, normas — extraidas del CV y de la informacion adicional. Si la info adicional menciona procesos de soldadura, equipos, sistemas o herramientas, incluyelos aqui.
+
+4. CERTIFICACIONES: Incluye TODAS las calificaciones, certificados, cursos, normas o habilitaciones mencionadas en cualquier parte del CV o de la informacion adicional. Si dice "calificado 2G, 3G, 4G" es una certificacion. Si menciono un curso, es una certificacion.
+
+5. DISPONIBILIDAD: Extrae de la informacion adicional todo lo relacionado con disponibilidad de turno, regimen de trabajo, licencias de conducir, movilizacion propia, disponibilidad geografica, disponibilidad inmediata, etc.
+
+6. Si la informacion adicional menciona caracteristicas personales como "puntual", "responsable", "trabajo en equipo" — incorporalas al perfil de forma natural, no como lista.
+
+7. NO inventes nada. Solo usa informacion que este en el CV o en la informacion adicional.
+
+8. Corrige ortografia y mejora la redaccion sin cambiar los hechos.
+
+Devuelve SOLO JSON valido con esta estructura exacta, sin texto adicional:
 
 {{
-  "perfil": "Párrafo de perfil profesional.",
+  "perfil": "Parrafo unico de 4-5 lineas personalizado y especifico.",
   "experiencia": [
     {{
       "empresa": "Nombre empresa",
-      "cargo": "Cargo",
-      "periodo": "2020 - 2023",
-      "funciones": ["Función concreta 1", "Función concreta 2", "Función concreta 3"]
+      "cargo": "Cargo desempenado",
+      "periodo": "Ano inicio - Ano termino",
+      "funciones": ["Funcion concreta 1", "Funcion concreta 2", "Funcion concreta 3"]
     }}
   ],
   "formacion": [
     {{
-      "titulo": "Título o carrera",
-      "institucion": "Institución",
-      "anio": "Año"
+      "titulo": "Titulo o carrera",
+      "institucion": "Institucion",
+      "anio": "Ano"
     }}
   ],
-  "competencias": ["Competencia 1", "Competencia 2"],
-  "certificaciones": ["Certificación 1", "Certificación 2"],
-  "disponibilidad": "Información sobre disponibilidad, turno, licencias, etc."
+  "competencias": ["Habilidad tecnica 1", "Habilidad tecnica 2"],
+  "certificaciones": ["Certificacion o calificacion 1", "Certificacion 2"],
+  "disponibilidad": "Disponibilidad, turno, licencias, movilizacion, etc."
 }}
 """
     try:
@@ -202,7 +212,7 @@ def generar_html(nombre, cargo, email, telefono, region, sueldo, nivel, area, da
 
     # Info contacto
     contacto_partes = []
-    if region: contacto_partes.append(region)
+    if region: contacto_partes.append(f"Región {region}")
     if email: contacto_partes.append(email)
     if telefono: contacto_partes.append(telefono)
     contacto_str = "  |  ".join(contacto_partes)
@@ -278,6 +288,7 @@ body {{
     font-size: 10pt;
     color: #475569;
     margin-top: 4px;
+    margin-bottom: 18px;
 }}
 
 /* SECCIONES */
@@ -286,14 +297,14 @@ body {{
 }}
 
 .section-title {{
-    font-size: 10pt;
+    font-size: 13pt;
     font-weight: bold;
     color: #114f96;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    padding-bottom: 5px;
-    margin-bottom: 10px;
-    border-bottom: 0.5px solid #e8edf2;
+    letter-spacing: 1.5px;
+    padding-bottom: 6px;
+    margin-bottom: 12px;
+    border-bottom: 1.5px solid #e05a4e;
 }}
 
 /* PERFIL */
@@ -319,7 +330,7 @@ body {{
 }}
 
 .exp-empresa {{
-    font-size: 12pt;
+    font-size: 11pt;
     font-weight: bold;
     color: #0f172a;
     display: table-cell;
@@ -340,11 +351,12 @@ body {{
 }}
 
 .exp-cargo {{
-    font-size: 10.5pt;
-    color: #114f96;
-    font-weight: bold;
+    font-size: 10pt;
+    color: #4a90d9;
+    font-weight: 600;
     margin-bottom: 6px;
-    margin-top: 1px;
+    margin-top: 2px;
+    font-style: italic;
 }}
 
 .exp-bullets {{
@@ -510,3 +522,4 @@ def crear_cv():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
