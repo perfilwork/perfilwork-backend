@@ -233,7 +233,7 @@ def generar_html(nombre, cargo, email, telefono, region, sueldo, nivel, area, da
 <style>
 @page {{
     size: A4;
-    margin: 18mm 18mm 15mm 18mm;
+    margin: 12mm 14mm 12mm 14mm;
 }}
 
 * {{
@@ -244,10 +244,10 @@ def generar_html(nombre, cargo, email, telefono, region, sueldo, nivel, area, da
 
 body {{
     font-family: Helvetica, Arial, sans-serif;
-    font-size: 10pt;
+    font-size: 9.5pt;
     color: #1e293b;
     background: #ffffff;
-    line-height: 1.35;
+    line-height: 1.3;
 }}
 
 /* HEADER */
@@ -264,13 +264,13 @@ body {{
 }}
 
 .logo-img {{
-    height: 40px;
+    height: 34px;
     display: block;
     margin-left: auto;
 }}
 
 .nombre {{
-    font-size: 20pt;
+    font-size: 18pt;
     font-weight: bold;
     color: #0f172a;
     line-height: 1.15;
@@ -304,13 +304,13 @@ body {{
 }}
 
 .section-title {{
-    font-size: 11pt;
+    font-size: 10pt;
     font-weight: bold;
     color: #114f96;
     text-transform: uppercase;
     letter-spacing: 1px;
-    margin-top: 14px;
-    margin-bottom: 5px;
+    margin-top: 12px;
+    margin-bottom: 4px;
     border-bottom: none;
     padding-bottom: 0px;
 }}
@@ -326,9 +326,9 @@ body {{
 
 /* PERFIL */
 .perfil-texto {{
-    font-size: 10pt;
+    font-size: 9.5pt;
     color: #334155;
-    line-height: 1.45;
+    line-height: 1.4;
 }}
 
 /* EXPERIENCIA */
