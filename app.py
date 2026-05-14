@@ -174,7 +174,7 @@ Devuelve SOLO JSON valido con esta estructura exacta, sin texto adicional:
     return data
 
 
-def generar_html(nombre, cargo, email, telefono, region, sueldo, nivel, area, data):
+def generar_html(nombre, cargo, email, telefono, region, ciudad, sueldo, nivel, area, data):
 
     # Experiencia
     experiencias = data["experiencia"][:8]
@@ -218,7 +218,8 @@ def generar_html(nombre, cargo, email, telefono, region, sueldo, nivel, area, da
 
     # Info contacto
     contacto_partes = []
-    if region: contacto_partes.append(f"Región {region}")
+    ubicacion = f"{ciudad}, Región {region}" if ciudad and region else (f"Región {region}" if region else ciudad)
+    if ubicacion: contacto_partes.append(ubicacion)
     if email: contacto_partes.append(email)
     if telefono: contacto_partes.append(telefono)
     contacto_str = "  |  ".join(contacto_partes)
@@ -497,8 +498,8 @@ body {{
 </html>"""
 
 
-def generar_pdf(nombre, cargo, email, telefono, region, sueldo, nivel, area, experiencia, data):
-    html = generar_html(nombre, cargo, email, telefono, region, sueldo, nivel, area, data)
+def generar_pdf(nombre, cargo, email, telefono, region, ciudad, sueldo, nivel, area, experiencia, data):
+    html = generar_html(nombre, cargo, email, telefono, region, ciudad, sueldo, nivel, area, data)
     buffer = BytesIO()
     pisa.CreatePDF(html, dest=buffer)
     buffer.seek(0)
@@ -521,11 +522,12 @@ def crear_cv():
         experiencia = request.form.get("experiencia", "")
         nivel       = request.form.get("nivel", "")
         sueldo      = request.form.get("sueldo", "")
+        ciudad      = request.form.get("ciudad", "")
 
         try:
             supabase.table("candidatos").insert({
                 "nombre": nombre, "email": email, "telefono": telefono,
-                "region": region, "cargo": cargo, "area": area,
+                "region": region, "ciudad": ciudad, "cargo": cargo, "area": area,
                 "experiencia": experiencia, "nivel": nivel,
                 "sueldo": sueldo, "info_extra": info_extra, "cv_url": ""
             }).execute()
@@ -536,7 +538,7 @@ def crear_cv():
         texto = extraer_texto(file)
         texto_procesado = preprocesar_cv(texto)
         data = mejorar_cv(texto_procesado, info_extra, cargo, area, nivel, experiencia)
-        pdf = generar_pdf(nombre, cargo, email, telefono, region, sueldo, nivel, area, experiencia, data)
+        pdf = generar_pdf(nombre, cargo, email, telefono, region, ciudad, sueldo, nivel, area, experiencia, data)
 
         return Response(
             pdf.getvalue(),
