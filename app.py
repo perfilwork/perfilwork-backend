@@ -189,12 +189,13 @@ def generar_html(nombre, cargo, email, telefono, region, sueldo, nivel, area, da
         inline_block = f'<div><span class="exp-cargo-inline">{exp["cargo"]}:</span> <span class="exp-funcion-inline">{primera}</span></div>' if primera else f'<div class="exp-cargo-inline">{exp["cargo"]}</div>'
         es_ultima = idx == len(experiencias) - 1
         clase = "exp-card exp-ultima" if es_ultima else "exp-card"
+        separador = "" if es_ultima else "<br/>"
         exp_html += f"""
         <div class="{clase}">
             <div class="exp-empresa-row"><span class="exp-empresa">{exp['empresa']}</span>{(" " + periodo) if periodo else ""}</div>
             {inline_block}
             {resto_block}
-        </div>"""
+        </div>{separador}"""
 
     # Formación
     formacion_items = ""
@@ -549,8 +550,3 @@ def crear_cv():
 
 if __name__ == "__main__":
     app.run(debug=True)
-
- 
-if __name__ == "__main__":
-    app.run(debug=True)
- 
