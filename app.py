@@ -2,27 +2,27 @@ import os
 import json
 import re
 from io import BytesIO
-
+ 
 from flask import Flask, request, Response
 from flask_cors import CORS
 from openai import OpenAI
 from supabase import create_client
 from xhtml2pdf import pisa
-
+ 
 import docx
 import PyPDF2
-
-
+ 
+ 
 app = Flask(__name__)
 CORS(app)
-
+ 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
+ 
 SUPABASE_URL = "https://kybticlgyamdcthljcov.supabase.co"
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-
+ 
+ 
 def extraer_texto(file):
     if not file:
         return ""
@@ -40,13 +40,13 @@ def extraer_texto(file):
     except Exception as e:
         print("ERROR EXTRACCION:", e)
     return ""
-
-
+ 
+ 
 def preprocesar_cv(texto):
     lineas = [re.sub(r"\s+", " ", l.strip()) for l in texto.split("\n") if l.strip()]
     return "\n".join(lineas)[:12000]
-
-
+ 
+ 
 def extraer_json(texto):
     try:
         match = re.search(r"\{.*\}", texto, re.DOTALL)
@@ -55,46 +55,46 @@ def extraer_json(texto):
     except Exception as e:
         print("ERROR JSON:", e)
     return None
-
-
+ 
+ 
 def mejorar_cv(texto_cv, info_extra, cargo, area, nivel, experiencia_anios):
     prompt = f"""
 Eres un experto en recursos humanos especializado en talento tecnico industrial en Chile, con 30 anos de experiencia reclutando perfiles operativos, tecnicos y profesionales en mineria, construccion, mantenimiento e industria.
-
+ 
 Tu mision es leer TODO el contenido del CV y la informacion adicional, y reorganizar esa informacion en un CV profesional estructurado. No es solo ordenar — es interpretar y distribuir correctamente cada dato en la seccion que le corresponde.
-
+ 
 DATOS DEL FORMULARIO:
 - Cargo: {cargo}
 - Area: {area}
 - Anos de experiencia declarados: {experiencia_anios}
 - Nivel: {nivel}
-
+ 
 CV ORIGINAL DEL CANDIDATO (lee todo antes de escribir):
 {texto_cv}
-
+ 
 INFORMACION ADICIONAL DEL CANDIDATO:
 {info_extra}
-
+ 
 INSTRUCCIONES CRITICAS — sigue cada una al pie de la letra:
-
+ 
 1. PERFIL: Escribe un parrafo unico de 4-5 lineas construido desde cero leyendo TODA la experiencia del CV. Menciona: cuantos anos lleva en el rubro, en que procesos o especialidades es experto, en que industrias o tipos de proyectos ha trabajado, y algun dato especifico que lo diferencie. NO copies la informacion adicional directamente aqui. NO uses frases vacias como "profesional comprometido", "orientado a resultados" o similares.
-
+ 
 2. EXPERIENCIA: Ordena del trabajo mas reciente al mas antiguo. Cada entrada debe tener empresa, cargo, periodo y funciones en bullets concretos. Las funciones NO deben repetir el nombre del proyecto — deben describir QUE HIZO el candidato especificamente.
-
+ 
 3. COMPETENCIAS: Incluye solo habilidades tecnicas reales — procesos, equipos, herramientas, normas — extraidas del CV y de la informacion adicional. Si la info adicional menciona procesos de soldadura, equipos, sistemas o herramientas, incluyelos aqui.
-
+ 
 4. CERTIFICACIONES: Incluye TODAS las calificaciones, certificados, cursos, normas o habilitaciones mencionadas en cualquier parte del CV o de la informacion adicional. Si dice "calificado 2G, 3G, 4G" es una certificacion. Si menciono un curso, es una certificacion.
-
+ 
 5. DISPONIBILIDAD: Extrae de la informacion adicional todo lo relacionado con disponibilidad de turno, regimen de trabajo, licencias de conducir, movilizacion propia, disponibilidad geografica, disponibilidad inmediata, etc.
-
+ 
 6. Si la informacion adicional menciona caracteristicas personales como "puntual", "responsable", "trabajo en equipo" — incorporalas al perfil de forma natural, no como lista.
-
+ 
 7. NO inventes nada. Solo usa informacion que este en el CV o en la informacion adicional.
-
+ 
 8. Corrige ortografia y mejora la redaccion sin cambiar los hechos.
-
+ 
 Devuelve SOLO JSON valido con esta estructura exacta, sin texto adicional:
-
+ 
 {{
   "perfil": "Parrafo unico de 4-5 lineas personalizado y especifico.",
   "experiencia": [
@@ -135,8 +135,7 @@ Devuelve SOLO JSON valido con esta estructura exacta, sin texto adicional:
     except Exception as e:
         print("ERROR OPENAI:", e)
         data = {"perfil": info_extra, "experiencia": [], "formacion": [], "competencias": [], "certificaciones": [], "disponibilidad": ""}
-
-    # Normalizar experiencia
+ 
     experiencias_ok = []
     for exp in data.get("experiencia", []):
         if isinstance(exp, dict):
@@ -149,8 +148,7 @@ Devuelve SOLO JSON valido con esta estructura exacta, sin texto adicional:
         elif isinstance(exp, str):
             experiencias_ok.append({"empresa": exp, "cargo": "", "periodo": "", "funciones": []})
     data["experiencia"] = experiencias_ok
-
-    # Normalizar formación
+ 
     formacion_ok = []
     for item in data.get("formacion", []):
         if isinstance(item, dict):
@@ -166,17 +164,16 @@ Devuelve SOLO JSON valido con esta estructura exacta, sin texto adicional:
         elif isinstance(item, str):
             formacion_ok.append({"titulo": item, "institucion": "", "anio": ""})
     data["formacion"] = formacion_ok
-
+ 
     data["competencias"] = [str(c) for c in data.get("competencias", [])] if isinstance(data.get("competencias"), list) else []
     data["certificaciones"] = [str(c) for c in data.get("certificaciones", [])] if isinstance(data.get("certificaciones"), list) else []
     data["perfil"] = str(data.get("perfil", ""))
     data["disponibilidad"] = str(data.get("disponibilidad", ""))
     return data
-
-
+ 
+ 
 def generar_html(nombre, cargo, email, telefono, region, ciudad, sueldo, nivel, area, data):
-
-    # Experiencia
+ 
     experiencias = data["experiencia"][:8]
     exp_html = ""
     for idx, exp in enumerate(experiencias):
@@ -196,316 +193,96 @@ def generar_html(nombre, cargo, email, telefono, region, ciudad, sueldo, nivel, 
             {inline_block}
             {resto_block}
         </div>{separador}"""
-
-    # Formación
+ 
     formacion_items = ""
     for f in data["formacion"][:5]:
         anio = f" · {f['anio']}" if f["anio"] else ""
         inst = f" — {f['institucion']}" if f["institucion"] else ""
         formacion_items += f"<li><strong>{f['titulo']}</strong>{inst}{anio}</li>"
     formacion_html = f'<ul class="lista-simple">{formacion_items}</ul>' if formacion_items else ""
-
-    # Competencias
+ 
     comp_items = "".join([f"<li>{c}</li>" for c in data["competencias"][:12]])
     competencias_html = f'<ul class="lista-pills">{comp_items}</ul>' if comp_items else ""
-
-    # Certificaciones
+ 
     cert_items = "".join([f"<li>{c}</li>" for c in data["certificaciones"][:8]])
     certs_html = f'<ul class="lista-simple">{cert_items}</ul>' if cert_items else ""
-
-    # Disponibilidad
+ 
     disp_html = f'<div class="disp-box">{data["disponibilidad"]}</div>' if data["disponibilidad"] else ""
-
-    # Info contacto
+ 
     contacto_partes = []
     ubicacion = f"{ciudad}, Región {region}" if ciudad and region else (f"Región {region}" if region else ciudad)
     if ubicacion: contacto_partes.append(ubicacion)
     if email: contacto_partes.append(email)
     if telefono: contacto_partes.append(telefono)
     contacto_str = "  |  ".join(contacto_partes)
-
-    # Pretensión salarial
+ 
     sueldo_html = f'<div class="sueldo">Pretensión salarial: <strong>${sueldo} Pesos Líquidos</strong></div>' if sueldo and sueldo.strip() else ""
-
+ 
     return f"""<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <style>
-@page {{
-    size: A4;
-    margin: 12mm 14mm 12mm 14mm;
-}}
-
-* {{
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}}
-
-body {{
-    font-family: Helvetica, Arial, sans-serif;
-    font-size: 9.5pt;
-    color: #1e293b;
-    background: #ffffff;
-    line-height: 1.3;
-}}
-
-/* HEADER */
-.header {{
-    padding-bottom: 10px;
-    margin-bottom: 12px;
-    border-bottom: none;
-}}
-
-.logo-row {{
-    display: block;
-    text-align: right;
-    margin-bottom: 8px;
-}}
-
-.logo-img {{
-    height: 34px;
-    display: block;
-    margin-left: auto;
-}}
-
-.nombre {{
-    font-size: 18pt;
-    font-weight: bold;
-    color: #0f172a;
-    line-height: 1.15;
-    margin-bottom: 2px;
-}}
-
-.cargo-titulo {{
-    font-size: 11pt;
-    color: #114f96;
-    font-weight: bold;
-    margin-bottom: 4px;
-}}
-
-.contacto {{
-    font-size: 9pt;
-    color: #64748b;
-    margin-bottom: 2px;
-}}
-
-.sueldo {{
-    font-size: 9pt;
-    color: #475569;
-    margin-top: 2px;
-    margin-bottom: 0px;
-}}
-
-/* SECCIONES */
-.section {{
-    margin-bottom: 0px;
-    margin-top: 0px;
-}}
-
-.section-title {{
-    font-size: 10pt;
-    font-weight: bold;
-    color: #114f96;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 12px;
-    margin-bottom: 4px;
-    border-bottom: none;
-    padding-bottom: 0px;
-}}
-
-.section-divider {{
-    height: 0px;
-    background-color: transparent;
-    margin-top: 10px;
-    margin-bottom: 0px;
-    border: none;
-    display: block;
-}}
-
-/* PERFIL */
-.perfil-texto {{
-    font-size: 9.5pt;
-    color: #334155;
-    line-height: 1.4;
-}}
-
-/* EXPERIENCIA */
-.exp-card {{
-    margin-bottom: 16px;
-    padding-bottom: 0px;
-    border-bottom: none;
-    border-left: none;
-    padding-left: 0px;
-}}
-
-.exp-ultima {{
-    margin-bottom: 4px;
-}}
-
-.exp-empresa {{
-    font-size: 10.5pt;
-    font-weight: bold;
-    color: #0f172a;
-    display: inline;
-}}
-
-.exp-periodo {{
-    font-size: 9pt;
-    color: #94a3b8;
-    font-style: normal;
-    display: inline;
-    margin-left: 6px;
-}}
-
-.exp-cargo-inline {{
-    font-size: 10pt;
-    color: #114f96;
-    font-weight: bold;
-    display: inline;
-}}
-
-.exp-cargo-inline {{
-    font-size: 10pt;
-    color: #114f96;
-    font-weight: bold;
-    display: inline;
-    margin-top: 0px;
-    margin-bottom: 0px;
-}}
-
-.exp-sep {{
-    font-size: 10pt;
-    color: #114f96;
-    font-weight: bold;
-}}
-
-.exp-funcion-inline {{
-    font-size: 9.5pt;
-    color: #475569;
-    display: inline;
-    margin: 0px;
-}}
-
-.exp-extra-bullets {{
-    padding-left: 14px;
-    margin-top: 1px;
-    margin-bottom: 2px;
-}}
-
-.exp-extra-bullets li {{
-    font-size: 9.5pt;
-    color: #475569;
-    margin-bottom: 1px;
-    line-height: 1.35;
-}}
-
-/* LISTAS */
-.lista-simple {{
-    padding-left: 0px;
-    list-style: none;
-}}
-
-.lista-simple li {{
-    font-size: 9.5pt;
-    color: #334155;
-    margin-bottom: 2px;
-    line-height: 1.35;
-}}
-
-.lista-pills {{
-    padding-left: 0;
-    list-style: none;
-}}
-
-.lista-pills li {{
-    font-size: 9.5pt;
-    color: #334155;
-    margin-bottom: 2px;
-    padding-left: 10px;
-    line-height: 1.35;
-}}
-
-.lista-pills li:before {{
-    content: "- ";
-    color: #114f96;
-}}
-
-/* DISPONIBILIDAD */
-.disp-box {{
-    font-size: 9.5pt;
-    color: #334155;
-    line-height: 1.4;
-}}
-
-/* FOOTER */
-.footer {{
-    border-top: 0.5px solid #e2e8f0;
-    padding-top: 6px;
-    margin-top: 14px;
-}}
-
-.footer-text {{
-    font-size: 7.5pt;
-    color: #94a3b8;
-}}
-
-.footer-bold {{
-    color: #64748b;
-    font-weight: bold;
-}}
+@page {{ size: A4; margin: 12mm 14mm 12mm 14mm; }}
+* {{ margin: 0; padding: 0; box-sizing: border-box; }}
+body {{ font-family: Helvetica, Arial, sans-serif; font-size: 9.5pt; color: #1e293b; background: #ffffff; line-height: 1.3; }}
+.header {{ padding-bottom: 10px; margin-bottom: 12px; }}
+.logo-row {{ display: block; text-align: right; margin-bottom: 8px; }}
+.logo-img {{ height: 34px; display: block; margin-left: auto; }}
+.nombre {{ font-size: 18pt; font-weight: bold; color: #0f172a; line-height: 1.15; margin-bottom: 2px; }}
+.cargo-titulo {{ font-size: 11pt; color: #114f96; font-weight: bold; margin-bottom: 4px; }}
+.contacto {{ font-size: 9pt; color: #64748b; margin-bottom: 2px; }}
+.sueldo {{ font-size: 9pt; color: #475569; margin-top: 2px; }}
+.section {{ margin-bottom: 0px; margin-top: 0px; }}
+.section-title {{ font-size: 10pt; font-weight: bold; color: #114f96; text-transform: uppercase; letter-spacing: 1px; margin-top: 12px; margin-bottom: 4px; }}
+.perfil-texto {{ font-size: 9.5pt; color: #334155; line-height: 1.4; }}
+.exp-card {{ margin-bottom: 16px; }}
+.exp-ultima {{ margin-bottom: 4px; }}
+.exp-empresa {{ font-size: 10.5pt; font-weight: bold; color: #0f172a; display: inline; }}
+.exp-periodo {{ font-size: 9pt; color: #94a3b8; display: inline; margin-left: 6px; }}
+.exp-cargo-inline {{ font-size: 10pt; color: #114f96; font-weight: bold; display: inline; }}
+.exp-funcion-inline {{ font-size: 9.5pt; color: #475569; display: inline; }}
+.exp-extra-bullets {{ padding-left: 14px; margin-top: 1px; margin-bottom: 2px; }}
+.exp-extra-bullets li {{ font-size: 9.5pt; color: #475569; margin-bottom: 1px; line-height: 1.35; }}
+.lista-simple {{ padding-left: 0px; list-style: none; }}
+.lista-simple li {{ font-size: 9.5pt; color: #334155; margin-bottom: 2px; line-height: 1.35; }}
+.lista-pills {{ padding-left: 0; list-style: none; }}
+.lista-pills li {{ font-size: 9.5pt; color: #334155; margin-bottom: 2px; padding-left: 10px; line-height: 1.35; }}
+.lista-pills li:before {{ content: "- "; color: #114f96; }}
+.disp-box {{ font-size: 9.5pt; color: #334155; line-height: 1.4; }}
+.footer {{ border-top: 0.5px solid #e2e8f0; padding-top: 6px; margin-top: 14px; }}
+.footer-text {{ font-size: 7.5pt; color: #94a3b8; }}
+.footer-bold {{ color: #64748b; font-weight: bold; }}
 </style>
 </head>
 <body>
-
-<!-- HEADER -->
 <div class="header">
-    <div class="logo-row">
-        <img src="https://raw.githubusercontent.com/perfilwork/perfilwork-backend/main/logo.png" class="logo-img" alt="Perfil.Work">
-    </div>
+    <div class="logo-row"><img src="https://raw.githubusercontent.com/perfilwork/perfilwork-backend/main/logo.png" class="logo-img" alt="Perfil.Work"></div>
     <div class="nombre">{nombre}</div>
     <div class="cargo-titulo">{cargo}</div>
     <div class="contacto">{contacto_str}</div>
     {sueldo_html}
 </div>
-
-<!-- PERFIL -->
 {f'<div class="section"><div class="section-title">Perfil Profesional</div><div class="perfil-texto">{data["perfil"]}</div></div>' if data["perfil"] else ""}
-
-<!-- EXPERIENCIA -->
 {f'<div class="section"><div class="section-title">Experiencia Laboral</div>{exp_html}</div>' if exp_html else ""}
-
-<!-- FORMACIÓN -->
 {f'<div class="section"><div class="section-title">Formación</div>{formacion_html}</div>' if formacion_html else ""}
-
-<!-- COMPETENCIAS -->
 {f'<div class="section"><div class="section-title">Competencias Técnicas</div>{competencias_html}</div>' if competencias_html else ""}
-
-<!-- CERTIFICACIONES -->
 {f'<div class="section"><div class="section-title">Certificaciones</div>{certs_html}</div>' if certs_html else ""}
-
-<!-- DISPONIBILIDAD -->
 {f'<div class="section"><div class="section-title">Disponibilidad</div>{disp_html}</div>' if disp_html else ""}
-
-<!-- FOOTER -->
-<div class="footer">
-    <span class="footer-text">Generado por <span class="footer-bold">Perfil.Work</span> | Talento que Impulsa Resultados</span>
-</div>
-
+<div class="footer"><span class="footer-text">Generado por <span class="footer-bold">Perfil.Work</span> | Talento que Impulsa Resultados</span></div>
 </body>
 </html>"""
-
-
+ 
+ 
 def generar_pdf(nombre, cargo, email, telefono, region, ciudad, sueldo, nivel, area, experiencia, data):
     html = generar_html(nombre, cargo, email, telefono, region, ciudad, sueldo, nivel, area, data)
     buffer = BytesIO()
     pisa.CreatePDF(html, dest=buffer)
     buffer.seek(0)
     return buffer
-
-
+ 
+ 
+# ─── ENDPOINT 1: MEJORAR CV ──────────────────────────────────────────────────
 @app.route("/crear-cv", methods=["GET", "POST"])
 def crear_cv():
     if request.method == "GET":
@@ -523,23 +300,24 @@ def crear_cv():
         nivel       = request.form.get("nivel", "")
         sueldo      = request.form.get("sueldo", "")
         ciudad      = request.form.get("ciudad", "")
-
+ 
         try:
             supabase.table("candidatos").insert({
                 "nombre": nombre, "email": email, "telefono": telefono,
                 "region": region, "ciudad": ciudad, "cargo": cargo, "area": area,
                 "experiencia": experiencia, "nivel": nivel,
-                "sueldo": sueldo, "info_extra": info_extra, "cv_url": ""
+                "sueldo": sueldo, "info_extra": info_extra,
+                "cv_url": "", "fuente": "mejora_cv"
             }).execute()
-            print("Candidato guardado")
+            print("Candidato guardado - mejora CV")
         except Exception as e:
             print("ERROR SUPABASE:", e)
-
+ 
         texto = extraer_texto(file)
         texto_procesado = preprocesar_cv(texto)
         data = mejorar_cv(texto_procesado, info_extra, cargo, area, nivel, experiencia)
         pdf = generar_pdf(nombre, cargo, email, telefono, region, ciudad, sueldo, nivel, area, experiencia, data)
-
+ 
         return Response(
             pdf.getvalue(),
             mimetype="application/pdf",
@@ -548,7 +326,57 @@ def crear_cv():
     except Exception as e:
         print("ERROR GENERAL:", e)
         return "Error interno del servidor", 500
-
-
+ 
+ 
+# ─── ENDPOINT 2: REGISTRAR CANDIDATO RED ────────────────────────────────────
+@app.route("/registrar-candidato", methods=["GET", "POST"])
+def registrar_candidato():
+    if request.method == "GET":
+        return "Endpoint activo"
+    try:
+        nombre      = request.form.get("nombre", "")
+        email       = request.form.get("email", "")
+        prefijo     = request.form.get("prefijo", "")
+        telefono    = request.form.get("telefono", "")
+        telefono_completo = request.form.get("telefono_completo", "") or f"{prefijo} {telefono}".strip()
+        cargo       = request.form.get("cargo", "")
+        pais        = request.form.get("pais", "")
+        ciudad      = request.form.get("ciudad", "")
+        moneda      = request.form.get("moneda", "CLP")
+        sueldo      = request.form.get("sueldo", "")
+        nivel       = request.form.get("nivel", "")
+        disponibilidad = request.form.get("disponibilidad", "")
+ 
+        # Guardar CV si fue subido
+        cv_nombre = ""
+        file = request.files.get("cv")
+        if file and file.filename:
+            cv_nombre = file.filename
+ 
+        try:
+            supabase.table("candidatos").insert({
+                "nombre": nombre,
+                "email": email,
+                "telefono": telefono_completo,
+                "region": pais,
+                "ciudad": ciudad,
+                "cargo": cargo,
+                "nivel": nivel,
+                "sueldo": f"{moneda} {sueldo}".strip() if sueldo else "",
+                "disponibilidad": disponibilidad,
+                "cv_url": cv_nombre,
+                "fuente": "red_talento"
+            }).execute()
+            print(f"Candidato red guardado: {nombre}")
+        except Exception as e:
+            print("ERROR SUPABASE:", e)
+ 
+        return {"ok": True, "mensaje": "Candidato registrado exitosamente"}, 200
+ 
+    except Exception as e:
+        print("ERROR REGISTRAR:", e)
+        return {"ok": False, "error": str(e)}, 500
+ 
+ 
 if __name__ == "__main__":
     app.run(debug=True)
